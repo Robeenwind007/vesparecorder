@@ -22,6 +22,7 @@ interface FormData {
   beneficiaire: string
   emplacement: Emplacement | ''
   retire: boolean
+  saisi_par_email: string
   image_file: File | null
   image_url: string | null
 }
@@ -29,7 +30,7 @@ interface FormData {
 export default function FormulaireIntervention() {
   const { id }   = useParams()
   const isEdit   = Boolean(id)
-  const { user } = useUser()
+  const { user, isAdmin } = useUser()
   const navigate = useNavigate()
 
   const [donneurs, setDonneurs]     = useState<DonneurOrdre[]>([])
@@ -46,7 +47,7 @@ export default function FormulaireIntervention() {
     latitude: null, longitude: null, adresse: '',
     espece: 'Asiatique', type_nid: 'Secondaire',
     nombre_nids: 1, beneficiaire: '', emplacement: '',
-    retire: false, image_file: null, image_url: null,
+    retire: false, saisi_par_email: '', image_file: null, image_url: null,
   })
 
   const set = <K extends keyof FormData>(k: K, v: FormData[K]) =>
@@ -67,7 +68,7 @@ export default function FormulaireIntervention() {
           espece: obs.espece, type_nid: (obs.type_nid ?? 'Secondaire') as TypeNid,
           nombre_nids: obs.nombre_nids, beneficiaire: obs.beneficiaire ?? '',
           emplacement: (obs.emplacement ?? '') as Emplacement | '',
-          retire: obs.retire, image_file: null, image_url: obs.image_url,
+          retire: obs.retire, saisi_par_email: obs.saisi_par_email ?? '', image_file: null, image_url: obs.image_url,
         })
         if (obs.image_url) setPreview(obs.image_url)
         setLoading(false)
@@ -126,7 +127,7 @@ export default function FormulaireIntervention() {
         beneficiaire: form.beneficiaire || null,
         emplacement: (form.emplacement || null) as Emplacement | null,
         retire: form.retire, image_url,
-        saisi_par_email: user.email,
+        saisi_par_email: isEdit ? (form.saisi_par_email || user.email) : user.email,
       }
 
       if (isEdit && id) await updateObservation(id, payload)
@@ -223,6 +224,14 @@ export default function FormulaireIntervention() {
         {/* Bénéficiaire */}
         <Input label="Bénéficiaire" required value={form.beneficiaire}
           onChange={e => set('beneficiaire', e.target.value)} placeholder="Nom du bénéficiaire" />
+
+
+        {/* Saisi par — visible admin en modification seulement */}
+        {isAdmin && isEdit && (
+          <Input label="Saisi par" value={form.saisi_par_email}
+            onChange={e => set('saisi_par_email', e.target.value)}
+            placeholder="email@exemple.com" />
+        )}
 
         {/* Emplacement */}
         <div className="space-y-2">
