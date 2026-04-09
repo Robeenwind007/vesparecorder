@@ -47,7 +47,7 @@ export function ToggleBtn({ label, selected, onClick, color }: ToggleBtnProps) {
       onClick={onClick}
       className={`w-full py-3.5 px-4 rounded-xl text-base font-medium transition-all active:scale-98 border ${
         selected
-          ? 'border-amber-500 text-white'
+          ? 'bg-amber-500 border-amber-500 text-black'
           : 'border-gray-700 bg-gray-800/50 text-gray-300 hover:border-gray-500'
       }`}
       style={selected && color ? { backgroundColor: color, borderColor: color } : undefined}
