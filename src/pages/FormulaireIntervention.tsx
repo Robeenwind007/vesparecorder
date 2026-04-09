@@ -3,7 +3,7 @@ import { useNavigate, useParams } from 'react-router-dom'
 import { useUser } from '../hooks/useUser'
 import {
   createObservation, updateObservation, getObservation,
-  getDonneurs, uploadPhoto, geocodeAdresse
+  getDonneurs, addDonneur, uploadPhoto, geocodeAdresse
 } from '../lib/supabase'
 import type { Espece, TypeNid, Emplacement, DonneurOrdre } from '../types'
 import { ESPECES, TYPES_NID, EMPLACEMENTS } from '../types'
@@ -33,12 +33,16 @@ export default function FormulaireIntervention() {
   const { user, isAdmin } = useUser()
   const navigate = useNavigate()
 
-  const [donneurs, setDonneurs]     = useState<DonneurOrdre[]>([])
-  const [loading, setLoading]       = useState(false)
-  const [loadingGPS, setLoadingGPS] = useState(false)
-  const [saving, setSaving]         = useState(false)
-  const [errors, setErrors]         = useState<Partial<Record<string, string>>>({})
-  const [preview, setPreview]       = useState<string | null>(null)
+  const [donneurs, setDonneurs]         = useState<DonneurOrdre[]>([])
+  const [loading, setLoading]           = useState(false)
+  const [loadingGPS, setLoadingGPS]     = useState(false)
+  const [saving, setSaving]             = useState(false)
+  const [errors, setErrors]             = useState<Partial<Record<string, string>>>({})
+  const [preview, setPreview]           = useState<string | null>(null)
+  // Ajout donneur inline
+  const [showAddDonneur, setShowAddDonneur] = useState(false)
+  const [newDonneur, setNewDonneur]         = useState('')
+  const [savingDonneur, setSavingDonneur]   = useState(false)
   const fileRef = useRef<HTMLInputElement>(null)
 
   const [form, setForm] = useState<FormData>({
@@ -47,14 +51,18 @@ export default function FormulaireIntervention() {
     latitude: null, longitude: null, adresse: '',
     espece: 'Asiatique', type_nid: 'Secondaire',
     nombre_nids: 1, beneficiaire: '', emplacement: '',
-    retire: false, saisi_par_email: '', image_file: null, image_url: null,
+    retire: false, saisi_par_email: '',
+    image_file: null, image_url: null,
   })
 
   const set = <K extends keyof FormData>(k: K, v: FormData[K]) =>
     setForm(f => ({ ...f, [k]: v }))
 
+  const loadDonneurs = () =>
+    getDonneurs(user?.email).then(setDonneurs)
+
   useEffect(() => {
-    getDonneurs().then(setDonneurs)
+    loadDonneurs()
     if (isEdit && id) {
       setLoading(true)
       getObservation(id).then(obs => {
@@ -68,13 +76,27 @@ export default function FormulaireIntervention() {
           espece: obs.espece, type_nid: (obs.type_nid ?? 'Secondaire') as TypeNid,
           nombre_nids: obs.nombre_nids, beneficiaire: obs.beneficiaire ?? '',
           emplacement: (obs.emplacement ?? '') as Emplacement | '',
-          retire: obs.retire, saisi_par_email: obs.saisi_par_email ?? '', image_file: null, image_url: obs.image_url,
+          retire: obs.retire, saisi_par_email: obs.saisi_par_email ?? '',
+          image_file: null, image_url: obs.image_url,
         })
         if (obs.image_url) setPreview(obs.image_url)
         setLoading(false)
       })
     }
-  }, [id, isEdit])
+  }, [id, isEdit, user])
+
+  // Ajouter un nouveau donneur d'ordre
+  const handleAddDonneur = async () => {
+    const nom = newDonneur.trim()
+    if (!nom) return
+    setSavingDonneur(true)
+    await addDonneur(nom, user?.email)
+    await loadDonneurs()
+    set('donneur_ordre', nom)
+    setNewDonneur('')
+    setShowAddDonneur(false)
+    setSavingDonneur(false)
+  }
 
   const captureGPS = (): Promise<{lat: number, lng: number} | null> => {
     setLoadingGPS(true)
@@ -103,7 +125,6 @@ export default function FormulaireIntervention() {
   const validate = () => {
     const errs: Record<string, string> = {}
     if (!form.donneur_ordre) errs.donneur_ordre = 'Requis'
-    // GPS validé dans handleSave (capture auto si manquant)
     if (form.origine_localisation === 'Adresse' && !form.adresse.trim())
       errs.adresse = 'Adresse requise'
     setErrors(errs)
@@ -129,6 +150,7 @@ export default function FormulaireIntervention() {
 
       let image_url = form.image_url
       if (form.image_file) image_url = await uploadPhoto(user.email, form.image_file)
+
       if (form.origine_localisation === 'Adresse' && form.adresse && !lat) {
         const coords = await geocodeAdresse(form.adresse)
         if (coords) { lat = coords.lat; lng = coords.lng }
@@ -182,13 +204,52 @@ export default function FormulaireIntervention() {
 
         {/* Donneur d'ordre */}
         <div className="space-y-1.5">
-          <label className="text-sm font-medium text-gray-400">Donneur d'ordre <span className="text-amber-500">*</span></label>
+          <div className="flex items-center justify-between">
+            <label className="text-sm font-medium text-gray-400">
+              Donneur d'ordre <span className="text-amber-500">*</span>
+            </label>
+            <button
+              type="button"
+              onClick={() => setShowAddDonneur(v => !v)}
+              className="text-xs text-amber-500 hover:text-amber-400 font-medium flex items-center gap-1"
+            >
+              {showAddDonneur ? '✕ Annuler' : '+ Ajouter'}
+            </button>
+          </div>
+
+          {/* Formulaire ajout inline */}
+          {showAddDonneur && (
+            <div className="flex gap-2">
+              <input
+                type="text"
+                value={newDonneur}
+                onChange={e => setNewDonneur(e.target.value)}
+                onKeyDown={e => e.key === 'Enter' && handleAddDonneur()}
+                placeholder="Nom du donneur d'ordre…"
+                autoFocus
+                className="flex-1 bg-gray-700 border border-amber-500/50 rounded-xl px-4 py-2.5 text-white text-sm focus:outline-none focus:border-amber-500"
+              />
+              <button
+                onClick={handleAddDonneur}
+                disabled={savingDonneur || !newDonneur.trim()}
+                className="px-4 py-2.5 bg-amber-500 hover:bg-amber-600 disabled:opacity-40 text-black font-medium text-sm rounded-xl transition-colors"
+              >
+                {savingDonneur ? '…' : 'OK'}
+              </button>
+            </div>
+          )}
+
           <select value={form.donneur_ordre} onChange={e => set('donneur_ordre', e.target.value)}
             className="w-full bg-gray-800 border border-gray-700 rounded-xl px-4 py-3 text-white text-base focus:outline-none focus:border-amber-500 appearance-none">
             <option value="">— Choisir —</option>
-            {donneurs.map(d => <option key={d.id} value={d.nom}>{d.nom}</option>)}
+            {donneurs.map(d => (
+              <option key={d.id} value={d.nom}>
+                {d.nom}{d.created_by_email ? ' ★' : ''}
+              </option>
+            ))}
           </select>
           {errors.donneur_ordre && <p className="text-xs text-red-400">{errors.donneur_ordre}</p>}
+          <p className="text-xs text-gray-600">★ = vos donneurs personnels</p>
         </div>
 
         {/* Localisation */}
@@ -204,7 +265,7 @@ export default function FormulaireIntervention() {
               <Btn variant="secondary" fullWidth onClick={captureGPS} loading={loadingGPS}>
                 📍 {loadingGPS ? 'Acquisition…' : form.latitude ? `${form.latitude.toFixed(5)}, ${form.longitude?.toFixed(5)}` : 'Capturer position GPS'}
               </Btn>
-              {errors.gps && <p className="text-xs text-red-400">{errors.gps}</p>}
+              <p className="text-xs text-gray-600">Position capturée automatiquement à la sauvegarde si non renseignée.</p>
             </div>
           ) : (
             <div className="space-y-1.5">
@@ -243,8 +304,7 @@ export default function FormulaireIntervention() {
         <Input label="Bénéficiaire" required value={form.beneficiaire}
           onChange={e => set('beneficiaire', e.target.value)} placeholder="Nom du bénéficiaire" />
 
-
-        {/* Saisi par — visible admin en modification seulement */}
+        {/* Saisi par — admin en modification seulement */}
         {isAdmin && isEdit && (
           <Input label="Saisi par" value={form.saisi_par_email}
             onChange={e => set('saisi_par_email', e.target.value)}

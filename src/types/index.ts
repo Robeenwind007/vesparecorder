@@ -18,6 +18,7 @@ export interface DonneurOrdre {
   id: string
   nom: string
   actif: boolean
+  created_by_email: string | null
 }
 
 export interface Observation {

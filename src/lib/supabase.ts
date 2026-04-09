@@ -7,17 +7,30 @@ const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY as string
 export const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
 
 // ── Donneurs d'ordre ─────────────────────────────────────────
-export const getDonneurs = async (): Promise<DonneurOrdre[]> => {
-  const { data } = await supabase
+// Retourne les donneurs globaux (created_by_email IS NULL) + ceux de l'utilisateur
+export const getDonneurs = async (email?: string): Promise<DonneurOrdre[]> => {
+  let q = supabase
     .from('donneurs_ordre')
     .select('*')
     .eq('actif', true)
     .order('nom')
+
+  if (email) {
+    // Donneurs globaux OU appartenant à cet utilisateur
+    q = q.or(`created_by_email.is.null,created_by_email.eq.${email}`)
+  } else {
+    q = q.is('created_by_email', null)
+  }
+
+  const { data } = await q
   return data ?? []
 }
 
-export const addDonneur = async (nom: string) =>
-  supabase.from('donneurs_ordre').insert({ nom })
+export const addDonneur = async (nom: string, email?: string) =>
+  supabase.from('donneurs_ordre').insert({
+    nom,
+    created_by_email: email ?? null
+  })
 
 // ── Observations ─────────────────────────────────────────────
 // emailFiltre : si fourni et non-admin → filtrage par piégeur
