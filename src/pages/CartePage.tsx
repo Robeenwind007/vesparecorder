@@ -78,7 +78,7 @@ export default function CartePage() {
             <p style="color:#9ca3af;font-size:12px;margin:0 0 2px">${o.donneur_ordre ?? ''}</p>
             ${o.type_nid ? `<p style="font-size:12px;margin:0 0 4px">Nid : ${o.type_nid}</p>` : ''}
             ${o.emplacement ? `<p style="font-size:12px;margin:0 0 4px">📍 ${o.emplacement}</p>` : ''}
-            <p style="font-size:12px;margin:0">${o.retire ? '✅ Retiré' : '🟠 Actif'}</p>
+            <p style="font-size:12px;margin:0">${o.retire ? '✅ Retiré' : '🟠 Non retiré'}</p>
             <button onclick="window.location.href='/observation/${o.id}'"
               style="margin-top:8px;background:#D97706;color:white;border:none;padding:6px 12px;border-radius:8px;font-size:12px;cursor:pointer;width:100%">
               Voir détail →

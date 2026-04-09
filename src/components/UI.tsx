@@ -158,7 +158,7 @@ export function RetireBadge({ retire }: { retire: boolean }) {
     <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
       retire ? 'bg-green-900/60 text-green-300' : 'bg-orange-900/60 text-orange-300'
     }`}>
-      {retire ? '✓ Retiré' : '● Actif'}
+      {retire ? '✓ Retiré' : '● Non retiré'}
     </span>
   )
 }
