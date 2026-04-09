@@ -10,23 +10,39 @@ export default function ListePage() {
   const { user, isAdmin } = useUser()
   const navigate = useNavigate()
 
-  const [obs, setObs]         = useState<Observation[]>([])
-  const [loading, setLoading] = useState(true)
-  const [search, setSearch]   = useState('')
+  const [obs, setObs]           = useState<Observation[]>([])
+  const [loading, setLoading]   = useState(true)
+  const [search, setSearch]     = useState('')
   const [filtreEsp, setFiltreEsp] = useState('')
   const [filtreRet, setFiltreRet] = useState('')
-  const [voirTout, setVoirTout]   = useState(false) // admin seulement
+  const [filtreAnnee, setFiltreAnnee] = useState('')
+  const [voirTout, setVoirTout] = useState(false)
+  const [annees, setAnnees]     = useState<string[]>([])
 
   useEffect(() => {
     if (!user) return
     const emailFiltre = isAdmin && voirTout ? undefined : user.email
-    getObservations({ emailFiltre }).then(data => { setObs(data); setLoading(false) })
+    setLoading(true)
+    getObservations({ emailFiltre }).then(data => {
+      setObs(data)
+      // Détecter les années présentes
+      const anneesPresentes = [...new Set(
+        data.map(o => o.date_observation.substring(0, 4))
+      )].sort((a, b) => b.localeCompare(a)) // Plus récente en premier
+      setAnnees(anneesPresentes)
+      // Sélectionner l'année courante par défaut si présente
+      const anneeActuelle = String(new Date().getFullYear())
+      if (anneesPresentes.includes(anneeActuelle)) setFiltreAnnee(anneeActuelle)
+      else if (anneesPresentes.length > 0) setFiltreAnnee(anneesPresentes[0])
+      setLoading(false)
+    })
   }, [user, isAdmin, voirTout])
 
   const filtered = obs.filter(o => {
-    if (filtreEsp && o.espece !== filtreEsp) return false
-    if (filtreRet === 'oui' && !o.retire)   return false
-    if (filtreRet === 'non' &&  o.retire)   return false
+    if (filtreAnnee && !o.date_observation.startsWith(filtreAnnee)) return false
+    if (filtreEsp && o.espece !== filtreEsp)   return false
+    if (filtreRet === 'oui' && !o.retire)      return false
+    if (filtreRet === 'non' &&  o.retire)      return false
     if (search) {
       const s = search.toLowerCase()
       return (
@@ -44,6 +60,7 @@ export default function ListePage() {
   return (
     <div className="flex flex-col h-full bg-gray-900">
       <div className="px-4 pt-4 pb-3 space-y-3 border-b border-gray-800">
+
         {/* Recherche */}
         <div className="relative">
           <svg className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -54,15 +71,41 @@ export default function ListePage() {
             className="w-full bg-gray-800 border border-gray-700 rounded-xl pl-9 pr-4 py-2.5 text-sm text-white placeholder-gray-500 focus:outline-none focus:border-amber-500" />
         </div>
 
-        {/* Filtres + toggle admin */}
+        {/* Filtre années — pills horizontales */}
+        {annees.length > 1 && (
+          <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-none">
+            <button
+              onClick={() => setFiltreAnnee('')}
+              className={`flex-shrink-0 px-4 py-1.5 rounded-full text-sm font-medium transition-colors border ${
+                filtreAnnee === ''
+                  ? 'bg-amber-500 border-amber-500 text-black'
+                  : 'bg-gray-800 border-gray-700 text-gray-300'
+              }`}>
+              Toutes
+            </button>
+            {annees.map(a => (
+              <button key={a}
+                onClick={() => setFiltreAnnee(a)}
+                className={`flex-shrink-0 px-4 py-1.5 rounded-full text-sm font-medium transition-colors border ${
+                  filtreAnnee === a
+                    ? 'bg-amber-500 border-amber-500 text-black'
+                    : 'bg-gray-800 border-gray-700 text-gray-300'
+                }`}>
+                {a}
+              </button>
+            ))}
+          </div>
+        )}
+
+        {/* Filtres espèce / statut / admin */}
         <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-none">
           <select value={filtreEsp} onChange={e => setFiltreEsp(e.target.value)}
-            className="flex-shrink-0 bg-gray-800 border border-gray-700 text-sm text-white rounded-xl px-3 py-2 focus:outline-none">
+            className="flex-shrink-0 bg-gray-800 border border-gray-700 text-sm text-white rounded-xl px-3 py-2 focus:outline-none focus:border-amber-500">
             <option value="">Toutes espèces</option>
             {ESPECES.map(e => <option key={e} value={e}>{e}</option>)}
           </select>
           <select value={filtreRet} onChange={e => setFiltreRet(e.target.value)}
-            className="flex-shrink-0 bg-gray-800 border border-gray-700 text-sm text-white rounded-xl px-3 py-2 focus:outline-none">
+            className="flex-shrink-0 bg-gray-800 border border-gray-700 text-sm text-white rounded-xl px-3 py-2 focus:outline-none focus:border-amber-500">
             <option value="">Tous statuts</option>
             <option value="non">Actifs</option>
             <option value="oui">Retirés</option>
@@ -77,9 +120,13 @@ export default function ListePage() {
           )}
         </div>
 
-        <p className="text-xs text-gray-500">{filtered.length} observation{filtered.length > 1 ? 's' : ''}</p>
+        <p className="text-xs text-gray-500">
+          {filtered.length} observation{filtered.length > 1 ? 's' : ''}
+          {filtreAnnee ? ` en ${filtreAnnee}` : ''}
+        </p>
       </div>
 
+      {/* Liste */}
       <div className="flex-1 overflow-y-auto px-4 py-3 space-y-3 pb-20">
         {loading ? (
           <div className="flex justify-center pt-12"><Spinner size={32} /></div>
@@ -105,7 +152,6 @@ export default function ListePage() {
                   </p>
                 )}
                 {o.emplacement && <p className="text-xs text-gray-500">🌿 {o.emplacement}</p>}
-                {/* Afficher l'email seulement si admin en mode "tout voir" */}
                 {isAdmin && voirTout && o.saisi_par_email && (
                   <p className="text-xs text-amber-600/70 truncate">✉ {o.saisi_par_email}</p>
                 )}
