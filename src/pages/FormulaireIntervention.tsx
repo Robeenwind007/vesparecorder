@@ -76,13 +76,21 @@ export default function FormulaireIntervention() {
     }
   }, [id, isEdit])
 
-  const captureGPS = () => {
+  const captureGPS = (): Promise<{lat: number, lng: number} | null> => {
     setLoadingGPS(true)
-    navigator.geolocation.getCurrentPosition(
-      pos => { set('latitude', pos.coords.latitude); set('longitude', pos.coords.longitude); setLoadingGPS(false) },
-      ()  => { alert('Impossible de récupérer le GPS'); setLoadingGPS(false) },
-      { enableHighAccuracy: true, timeout: 10000 }
-    )
+    return new Promise(resolve => {
+      navigator.geolocation.getCurrentPosition(
+        pos => {
+          const coords = { lat: pos.coords.latitude, lng: pos.coords.longitude }
+          set('latitude', coords.lat)
+          set('longitude', coords.lng)
+          setLoadingGPS(false)
+          resolve(coords)
+        },
+        () => { setLoadingGPS(false); resolve(null) },
+        { enableHighAccuracy: true, timeout: 10000 }
+      )
+    })
   }
 
   const handlePhoto = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -95,8 +103,7 @@ export default function FormulaireIntervention() {
   const validate = () => {
     const errs: Record<string, string> = {}
     if (!form.donneur_ordre) errs.donneur_ordre = 'Requis'
-    if (form.origine_localisation === 'GPS' && (!form.latitude || !form.longitude))
-      errs.gps = 'Capturez la position GPS ou choisissez Adresse'
+    // GPS validé dans handleSave (capture auto si manquant)
     if (form.origine_localisation === 'Adresse' && !form.adresse.trim())
       errs.adresse = 'Adresse requise'
     setErrors(errs)
@@ -107,10 +114,21 @@ export default function FormulaireIntervention() {
     if (!validate() || !user) return
     setSaving(true)
     try {
+      // Capture GPS automatique si mode GPS et coordonnées manquantes
+      let lat = form.latitude, lng = form.longitude
+      if (form.origine_localisation === 'GPS' && (!lat || !lng)) {
+        const coords = await captureGPS()
+        if (!coords) {
+          alert('Impossible de récupérer la position GPS.\nVérifiez que la localisation est autorisée ou choisissez \'Adresse\'.')
+          setSaving(false)
+          return
+        }
+        lat = coords.lat
+        lng = coords.lng
+      }
+
       let image_url = form.image_url
       if (form.image_file) image_url = await uploadPhoto(user.email, form.image_file)
-
-      let lat = form.latitude, lng = form.longitude
       if (form.origine_localisation === 'Adresse' && form.adresse && !lat) {
         const coords = await geocodeAdresse(form.adresse)
         if (coords) { lat = coords.lat; lng = coords.lng }
