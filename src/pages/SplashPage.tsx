@@ -1,19 +1,8 @@
-import { useEffect } from 'react'
-import { useNavigate } from 'react-router-dom'
-import { useUser } from '../hooks/useUser'
+interface SplashProps {
+  onDone?: () => void
+}
 
-export default function SplashPage() {
-  const { user, loading } = useUser()
-  const navigate = useNavigate()
-
-  useEffect(() => {
-    if (loading) return
-    const timer = setTimeout(() => {
-      navigate(user ? '/' : '/identification', { replace: true })
-    }, 2500)
-    return () => clearTimeout(timer)
-  }, [loading, user, navigate])
-
+export default function SplashPage({ onDone }: SplashProps) {
   return (
     <div className="min-h-dvh bg-gray-900 flex flex-col items-center justify-center gap-8">
       <div className="flex flex-col items-center gap-6">
