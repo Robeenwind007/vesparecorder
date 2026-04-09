@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <rect width="512" height="512" rx="112" fill="#111827"/>
+  <!-- Cercle amber doux en arrière-plan -->
+  <circle cx="256" cy="256" r="180" fill="#D97706" opacity="0.08"/>
+  <!-- Grand V centré -->
+  <path d="M 110 130 L 256 390 L 402 130 L 340 130 L 256 300 L 172 130 Z" fill="#D97706"/>
+</svg>
