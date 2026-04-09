@@ -3,7 +3,8 @@
 Application PWA de suivi et enregistrement des nids de frelons asiatiques (*Vespa velutina*).  
 Remplace l'ancienne application AppSheet. Fonctionne sur Android et iOS sans installation de store.
 
-**par Olivier BERNARD**
+**© Olivier BERNARD 2026**  
+**URL de production** : [vesparecorder.vercel.app](https://vesparecorder.vercel.app)
 
 ---
 
@@ -14,131 +15,85 @@ Remplace l'ancienne application AppSheet. Fonctionne sur Android et iOS sans ins
 | Frontend | React 18 + TypeScript + Vite |
 | Style | Tailwind CSS |
 | Carte | Leaflet.js + OpenStreetMap (gratuit) |
-| Backend / BDD | Supabase (PostgreSQL + Auth + Storage) |
+| Backend / BDD | Supabase (PostgreSQL + Storage) |
 | PWA | vite-plugin-pwa + Workbox |
-| Déploiement | Vercel (recommandé) ou Netlify |
+| Déploiement | Vercel (CI/CD automatique) |
 | Versioning | Git + GitHub |
 
 ---
 
 ## Fonctionnalités
 
-- 🗺️ **Carte interactive** — visualisation de toutes les observations avec filtres espèce/statut
-- ✍️ **Saisie intervention** — formulaire mobile-first identique à AppSheet, amélioré
-- 📋 **Liste** — recherche texte + filtres, vue détail de chaque observation
-- 📊 **Statistiques** — tableau de bord complet (taux de traitement, par espèce, emplacements, donneurs)
-- 📸 **Photos** — prise de photo directement depuis l'appareil, stockage Supabase Storage
-- 📍 **GPS natif** — capture automatique de la position ou saisie par adresse + géocodage OSM
-- 👥 **Rôles** — Admin (tout voir/modifier) + Piégeur (ses propres saisies)
-- 📱 **PWA installable** — "Ajouter à l'écran d'accueil" sur Android et iOS
+- 🗺️ **Carte interactive** — marqueurs colorés par espèce, filtres, infobulle, légende
+- ✍️ **Saisie intervention** — formulaire mobile-first, GPS automatique au Save
+- 📋 **Liste** — recherche texte, filtres par année/espèce/statut, toggle admin
+- 📊 **Statistiques** — taux de traitement, par espèce, emplacements, donneurs
+- 📸 **Photos** — prise de photo directe, stockage Supabase Storage
+- 📍 **GPS natif** — capture auto ou adresse + géocodage OSM
+- 👥 **Multi-utilisateurs** — email mémorisé, sans mot de passe
+- 🔐 **Rôles** — Admin (tout) + Piégeur (ses propres données)
+- 📱 **PWA installable** — Android et iOS, icône sur l'écran d'accueil
+- 🏢 **Donneurs d'ordre** — liste globale + personnelle par utilisateur
 
 ---
 
 ## Installation et démarrage
 
-### 1. Prérequis
-
+### Prérequis
 - Node.js ≥ 18
-- Un compte [Supabase](https://supabase.com) (gratuit)
-- Un compte [Vercel](https://vercel.com) ou [Netlify](https://netlify.com) (gratuit)
+- Compte [Supabase](https://supabase.com) (gratuit)
+- Compte [Vercel](https://vercel.com) (gratuit)
+- Compte [GitHub](https://github.com)
 
-### 2. Cloner et installer
+### 1. Cloner et installer
 
 ```bash
-git clone https://github.com/VOTRE_USERNAME/vesparecorder.git
+git clone https://github.com/Robeenwind007/vesparecorder.git
 cd vesparecorder
 npm install
 ```
 
-### 3. Configurer Supabase
+### 2. Configurer Supabase
 
-1. Créer un nouveau projet sur [supabase.com](https://supabase.com)
-2. Dans **SQL Editor**, exécuter dans l'ordre :
-   - `supabase/schema.sql` — crée toutes les tables, RLS, fonctions
-   - `supabase/import_n1.sql` — importe les 222 observations 2025
-
-3. Copier vos clés API :
-   - Dashboard → Settings → API → **Project URL** et **anon public key**
+1. Créer un projet sur [supabase.com](https://supabase.com) — région **Europe West**
+2. SQL Editor → exécuter `supabase/schema.sql`
+3. SQL Editor → exécuter `supabase/import_n1.sql` (données historiques 2025)
+4. Settings → API → copier **Project URL** et **anon public key**
 
 ```bash
 cp .env.example .env.local
-# Éditer .env.local avec vos valeurs
+# Remplir VITE_SUPABASE_URL et VITE_SUPABASE_ANON_KEY
 ```
 
-```env
-VITE_SUPABASE_URL=https://VOTRE_PROJECT_ID.supabase.co
-VITE_SUPABASE_ANON_KEY=eyJ...votre_clé...
-```
-
-### 4. Lancer en développement
+### 3. Lancer en développement
 
 ```bash
 npm run dev
 # → http://localhost:5173
 ```
 
-### 5. Créer le premier compte admin
+### 4. Déployer sur Vercel
 
-1. Lancer l'app, aller sur `/login`
-2. Utiliser l'email `bertrandbernard10@gmail.com` — il sera automatiquement promu admin grâce au trigger SQL
-3. (Ou aller dans Supabase → Authentication → Users → Invite user)
+```bash
+git push origin main
+# Vercel redéploie automatiquement à chaque push
+```
+
+Variables d'environnement à configurer dans Vercel :
+- `VITE_SUPABASE_URL`
+- `VITE_SUPABASE_ANON_KEY`
 
 ---
 
-## Déploiement sur Vercel (recommandé)
+## Géocodage en masse
 
-### Option A — Via l'interface web (le plus simple)
-
-1. Pousser le code sur GitHub :
-```bash
-git init
-git add .
-git commit -m "feat: initial vesparecorder v2"
-git remote add origin https://github.com/VOTRE_USERNAME/vesparecorder.git
-git push -u origin main
-```
-
-2. Sur [vercel.com](https://vercel.com) :
-   - "Add New Project" → importer depuis GitHub
-   - Framework preset : **Vite** (auto-détecté)
-   - Ajouter les variables d'environnement :
-     - `VITE_SUPABASE_URL`
-     - `VITE_SUPABASE_ANON_KEY`
-   - Cliquer "Deploy"
-
-3. Chaque `git push` redéploie automatiquement ✅
-
-### Option B — Via CLI Vercel
+Pour géocoder les observations historiques sans coordonnées GPS :
 
 ```bash
-npm i -g vercel
-vercel
-# Suivre les instructions, ajouter les env vars quand demandé
+node geocode.mjs
 ```
 
----
-
-## Déploiement sur Netlify
-
-```bash
-npm run build
-# Puis drag & drop du dossier /dist sur netlify.com
-# Ou connecter le repo GitHub avec les mêmes variables d'env
-```
-
----
-
-## Installation sur mobile (PWA)
-
-### Android (Chrome)
-1. Ouvrir l'URL de l'app dans Chrome
-2. Menu (⋮) → "Ajouter à l'écran d'accueil"
-3. L'icône apparaît comme une vraie app
-
-### iOS (Safari)
-1. Ouvrir l'URL dans Safari (pas Chrome)
-2. Bouton partage (□↑) → "Sur l'écran d'accueil"
-3. L'icône apparaît, l'app s'ouvre en plein écran
+Le script traite toutes les observations avec adresse mais sans lat/lng, via Nominatim (1 req/sec).
 
 ---
 
@@ -148,64 +103,66 @@ npm run build
 vesparecorder/
 ├── src/
 │   ├── components/
-│   │   ├── Layout.tsx          # Navigation bottom + header
-│   │   └── UI.tsx              # Composants réutilisables
+│   │   ├── Layout.tsx              # Navigation + header
+│   │   └── UI.tsx                  # Composants réutilisables
 │   ├── hooks/
-│   │   └── useAuth.tsx         # Contexte auth Supabase
+│   │   └── useUser.tsx             # Auth légère localStorage
 │   ├── lib/
-│   │   └── supabase.ts         # Client + toutes les requêtes
+│   │   └── supabase.ts             # Client + requêtes BDD
 │   ├── pages/
-│   │   ├── LoginPage.tsx
-│   │   ├── CartePage.tsx       # Carte Leaflet interactive
-│   │   ├── ListePage.tsx       # Liste + recherche
-│   │   ├── FormulaireIntervention.tsx  # Saisie / édition
+│   │   ├── SplashPage.tsx          # Écran de démarrage
+│   │   ├── IdentificationPage.tsx  # Saisie email (1ère fois)
+│   │   ├── CartePage.tsx           # Carte Leaflet
+│   │   ├── ListePage.tsx           # Liste + filtres
+│   │   ├── FormulaireIntervention.tsx
 │   │   ├── ObservationDetail.tsx
-│   │   ├── StatsPage.tsx       # Dashboard statistiques
+│   │   ├── StatsPage.tsx
 │   │   ├── ProfilPage.tsx
 │   │   ├── AdminDonneurs.tsx
 │   │   └── AdminUtilisateurs.tsx
-│   ├── types/
-│   │   └── index.ts            # Types TypeScript + constantes
-│   ├── App.tsx                 # Router + protection routes
-│   ├── main.tsx
-│   └── index.css               # Tailwind + dark mode Leaflet
+│   ├── types/index.ts              # Types TypeScript
+│   ├── App.tsx                     # Router + splash logique
+│   └── index.css                   # Tailwind + dark Leaflet
 ├── supabase/
-│   ├── schema.sql              # BDD complète (tables, RLS, vues)
-│   └── import_n1.sql           # Import 222 observations 2025
-├── public/                     # Icônes PWA
+│   ├── schema.sql                  # BDD complète (tables, RLS, vues)
+│   └── import_n1.sql               # Import données 2025
+├── public/
+│   ├── favicon.svg
+│   ├── apple-touch-icon.png
+│   └── icons/
+│       ├── icon-192.png
+│       └── icon-512.png
+├── geocode.mjs                     # Script géocodage en masse
 ├── .env.example
-├── .gitignore
-├── package.json
-├── vite.config.ts              # Config Vite + PWA
-├── tailwind.config.js
-└── tsconfig.json
+├── vite.config.ts
+└── README.md
 ```
 
 ---
 
-## Données importées (N-1 / 2025)
+## Installation sur mobile
 
-| Champ | Valeurs |
-|-------|---------|
-| Total observations | 222 |
-| Avec GPS | ~100 |
-| Avec adresse | ~122 |
-| Espèces | Asiatique (217), Européen (5), Guêpes (1) |
-| Retirés | 104 |
-| Actifs | 118 |
-| Emplacements | Arbre, Haie, Appenti, Toiture, Garage… |
-| Donneurs d'ordre | 19 structures |
+### Android (Chrome)
+1. Ouvrir Chrome → `vesparecorder.vercel.app`
+2. Menu ⋮ → **Ajouter à l'écran d'accueil**
+
+### iOS (Safari)
+1. Ouvrir Safari (pas Chrome) → `vesparecorder.vercel.app`
+2. Bouton partage □↑ → **Sur l'écran d'accueil**
 
 ---
 
-## Géocodage des adresses
+## Identification sans mot de passe
 
-Les observations sans coordonnées GPS sont géocodées automatiquement à la saisie via **Nominatim / OpenStreetMap** (gratuit, pas de clé API nécessaire). Les 121 observations historiques avec adresse seulement seront visibles dans la liste mais pas sur la carte jusqu'à re-géocodage.
+L'email est saisi une seule fois et mémorisé dans `localStorage`. Les lancements suivants sont directs. Le rôle (admin/piégeur) est résolu en BDD à chaque démarrage pour rester à jour.
 
-Pour géocoder en masse les données historiques, un script optionnel peut être fourni sur demande.
+| Rôle | Accès |
+|------|-------|
+| Piégeur | Ses propres observations uniquement |
+| Admin | Toutes les observations + administration |
 
 ---
 
 ## Licence
 
-Usage privé — Vespa Recorder par Olivier BERNARD
+Usage privé — © Olivier BERNARD 2026
