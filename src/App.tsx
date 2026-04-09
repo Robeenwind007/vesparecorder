@@ -1,6 +1,6 @@
+import { useState, useEffect } from 'react'
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import { UserProvider, useUser } from './hooks/useUser'
-import { Spinner } from './components/UI'
 import Layout from './components/Layout'
 import SplashPage from './pages/SplashPage'
 import IdentificationPage from './pages/IdentificationPage'
@@ -13,24 +13,22 @@ import ProfilPage from './pages/ProfilPage'
 import AdminDonneurs from './pages/AdminDonneurs'
 import AdminUtilisateurs from './pages/AdminUtilisateurs'
 
-function ProtectedRoute({ children }: { children: React.ReactNode }) {
+function AppContent() {
   const { user, loading } = useUser()
-  if (loading) return (
-    <div className="min-h-dvh bg-gray-900 flex items-center justify-center">
-      <Spinner size={40} />
-    </div>
-  )
-  if (!user) return <Navigate to="/identification" replace />
-  return <>{children}</>
-}
+  const [showSplash, setShowSplash] = useState(true)
 
-function AppRoutes() {
-  const { user } = useUser()
+  useEffect(() => {
+    const timer = setTimeout(() => setShowSplash(false), 2500)
+    return () => clearTimeout(timer)
+  }, [])
+
+  // Afficher le splash les 2.5 premières secondes, peu importe la route
+  if (showSplash || loading) return <SplashPage onDone={() => setShowSplash(false)} />
+
   return (
     <Routes>
-      <Route path="/splash" element={<SplashPage />} />
       <Route path="/identification" element={user ? <Navigate to="/" replace /> : <IdentificationPage />} />
-      <Route path="/" element={<ProtectedRoute><Layout /></ProtectedRoute>}>
+      <Route path="/" element={user ? <Layout /> : <Navigate to="/identification" replace />}>
         <Route index element={<CartePage />} />
         <Route path="liste"                element={<ListePage />} />
         <Route path="nouveau"              element={<FormulaireIntervention />} />
@@ -41,7 +39,7 @@ function AppRoutes() {
         <Route path="admin/donneurs"       element={<AdminDonneurs />} />
         <Route path="admin/utilisateurs"   element={<AdminUtilisateurs />} />
       </Route>
-      <Route path="*" element={<Navigate to="/splash" replace />} />
+      <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
   )
 }
@@ -49,8 +47,8 @@ function AppRoutes() {
 export default function App() {
   return (
     <BrowserRouter>
-      <UserProvider>
-        <AppRoutes />
+<UserProvider>
+        <AppContent />
       </UserProvider>
     </BrowserRouter>
   )
