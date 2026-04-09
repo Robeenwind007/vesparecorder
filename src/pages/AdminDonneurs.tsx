@@ -25,7 +25,7 @@ export default function AdminDonneurs() {
   const handleAdd = async () => {
     if (!nouveau.trim()) return
     setSaving(true)
-    await addDonneur(nouveau.trim(), null) // null = global (admin)
+    await addDonneur(nouveau.trim(), undefined) // null = global (admin)
     await load()
     setNouveau('')
     setSaving(false)
