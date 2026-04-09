@@ -51,7 +51,7 @@ export default function StatsPage() {
       <div className="grid grid-cols-2 gap-3">
         <StatCard label="Total"       value={stats.total_observations} color="amber" />
         <StatCard label="Cette année" value={stats.cette_annee}        color="amber" />
-        <StatCard label="Actifs"      value={stats.total_actifs}       color="red"   sub="nids en place" />
+        <StatCard label="Laissés"      value={stats.total_actifs}       color="red"   sub="nids en place" />
         <StatCard label="Retirés"     value={stats.total_retires}      color="green" sub="nids traités" />
         <StatCard label="Primaires"   value={stats.total_primaires}    color="purple" />
         <StatCard label="Secondaires" value={stats.total_secondaires}  color="blue" />
