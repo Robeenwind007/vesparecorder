@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { getObservations } from '../lib/supabase'
+import { getObservations, getDonneurs } from '../lib/supabase'
+import type { DonneurOrdre } from '../types'
 import { useUser } from '../hooks/useUser'
 import type { Observation } from '../types'
 import { ESPECES } from '../types'
@@ -26,8 +27,14 @@ export default function ListePage() {
     return d.toISOString().split('T')[0]
   })
   const [exportFin, setExportFin]     = useState(() => new Date().toISOString().split('T')[0])
-  const [exporting, setExporting]     = useState(false)
+  const [exportDonneur, setExportDonneur] = useState('')
+  const [donneurs, setDonneurs]           = useState<DonneurOrdre[]>([])
+  const [exporting, setExporting]         = useState(false)
   const panelRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    if (user) getDonneurs(user.email).then(setDonneurs)
+  }, [user])
 
   useEffect(() => {
     if (!user) return
@@ -73,6 +80,7 @@ export default function ListePage() {
     if (filtreEsp && o.espece !== filtreEsp)  return false
     if (filtreRet === 'oui' && !o.retire)     return false
     if (filtreRet === 'non' &&  o.retire)     return false
+    if (exportDonneur && o.donneur_ordre !== exportDonneur) return false
     if (search) {
       const s = search.toLowerCase()
       return (
@@ -119,6 +127,7 @@ export default function ListePage() {
       const filtresActifs = [
         filtreEsp ? `Espèce : ${filtreEsp}` : null,
         filtreRet === 'oui' ? 'Retirés seulement' : filtreRet === 'non' ? 'Non retirés seulement' : null,
+        exportDonneur ? `Donneur : ${exportDonneur}` : null,
         search ? `Recherche : "${search}"` : null,
       ].filter(Boolean).join('  •  ')
       const ligne2 = `Piégeur : ${user?.email}   •   Période : ${fmt(exportDebut)} au ${fmt(exportFin)}   •   Généré le ${fmt(new Date().toISOString().split('T')[0])}`
@@ -261,9 +270,10 @@ export default function ListePage() {
       const retires = exportData.filter(o => o.retire).length
       const byEsp   = exportData.reduce<Record<string, number>>((a, o) => { a[o.espece] = (a[o.espece] ?? 0) + 1; return a }, {})
       const filtresExcel = [
-        filtreEsp || 'Toutes',
-        filtreRet === 'oui' ? 'Retirés' : filtreRet === 'non' ? 'Non retirés' : 'Tous',
-        search ? `"${search}"` : null,
+        filtreEsp || 'Toutes espèces',
+        filtreRet === 'oui' ? 'Retirés' : filtreRet === 'non' ? 'Non retirés' : 'Tous statuts',
+        exportDonneur ? `Donneur : ${exportDonneur}` : null,
+        search ? `Recherche : "${search}"` : null,
       ].filter(Boolean).join(', ')
       const recap = [
         ['Récapitulatif', ''],
@@ -342,7 +352,7 @@ export default function ListePage() {
             <p className="text-xs text-gray-500">
               {exportData.length} observation{exportData.length > 1 ? 's' : ''} sur cette période
               {exportData.length > 0 && ` · ${exportData.filter(o => o.retire).length} retirées`}
-              {(filtreEsp || filtreRet || search) && (
+              {(filtreEsp || filtreRet || search || exportDonneur) && (
                 <span className="text-amber-500/70"> · filtres actifs</span>
               )}
             </p>
