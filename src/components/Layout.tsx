@@ -10,10 +10,24 @@ const NAV = [
 ]
 
 export default function Layout() {
-  const { user, isAdmin } = useUser()
+  const { user, realUser, isAdmin, isImpersonating, stopImpersonating } = useUser()
 
   return (
     <div className="flex flex-col h-dvh bg-gray-900 text-white">
+
+      {/* Bannière impersonation */}
+      {isImpersonating && (
+        <div className="flex items-center justify-between px-4 py-2 bg-amber-500 text-black text-xs font-medium">
+          <span>👁 Vue de <strong>{user?.email}</strong></span>
+          <button
+            onClick={stopImpersonating}
+            className="bg-black/20 hover:bg-black/30 px-3 py-1 rounded-lg font-semibold transition-colors"
+          >
+            ← Revenir admin
+          </button>
+        </div>
+      )}
+
       {/* Header */}
       <header className="flex items-center gap-3 px-4 py-3 bg-gray-900 border-b border-gray-800 safe-top">
         <div className="w-8 h-8 rounded-lg bg-amber-500 flex items-center justify-center text-black font-bold text-sm flex-shrink-0">
@@ -23,9 +37,14 @@ export default function Layout() {
           <h1 className="text-base font-semibold leading-none">VespaRecorder</h1>
           <p className="text-xs text-gray-500 truncate">{user?.email}</p>
         </div>
-        {isAdmin && (
+        {isAdmin && !isImpersonating && (
           <span className="text-xs bg-amber-500/20 text-amber-400 px-2 py-0.5 rounded-full border border-amber-500/30 flex-shrink-0">
             Admin
+          </span>
+        )}
+        {isImpersonating && (
+          <span className="text-xs bg-amber-500/20 text-amber-800 px-2 py-0.5 rounded-full border border-amber-500 flex-shrink-0">
+            Simulation
           </span>
         )}
       </header>
@@ -38,10 +57,7 @@ export default function Layout() {
       {/* Navigation bottom */}
       <nav className="flex bg-gray-900 border-t border-gray-800 safe-bottom">
         {NAV.map(({ to, icon: Icon, label }) => (
-          <NavLink
-            key={to}
-            to={to}
-            end={to === '/'}
+          <NavLink key={to} to={to} end={to === '/'}
             className={({ isActive }) =>
               `flex-1 flex flex-col items-center gap-1 py-3 text-xs transition-colors ${
                 isActive ? 'text-amber-500' : 'text-gray-500 hover:text-gray-300'

@@ -6,10 +6,10 @@ import type { Utilisateur } from '../types'
 import { Card, Spinner } from '../components/UI'
 
 export default function AdminUtilisateurs() {
-  const { isAdmin }  = useUser()
-  const navigate     = useNavigate()
-  const [users, setUsers]     = useState<Utilisateur[]>([])
-  const [loading, setLoading] = useState(true)
+  const { isAdmin, impersonate } = useUser()
+  const navigate                 = useNavigate()
+  const [users, setUsers]        = useState<Utilisateur[]>([])
+  const [loading, setLoading]    = useState(true)
 
   useEffect(() => {
     if (!isAdmin) { navigate('/'); return }
@@ -28,6 +28,11 @@ export default function AdminUtilisateurs() {
     setUsers(u => u.map(x => x.id === id ? { ...x, actif: !actif } : x))
   }
 
+  const handleImpersonate = (u: Utilisateur) => {
+    impersonate({ email: u.email, nom: u.nom, role: u.role, actif: u.actif })
+    navigate('/')
+  }
+
   if (loading) return <div className="flex items-center justify-center h-full"><Spinner size={32} /></div>
 
   return (
@@ -38,6 +43,7 @@ export default function AdminUtilisateurs() {
         </button>
         <h2 className="text-lg font-semibold flex-1">Utilisateurs ({users.length})</h2>
       </div>
+
       <div className="flex-1 overflow-y-auto px-4 py-4 space-y-3 pb-24">
         {users.map(u => (
           <Card key={u.id}>
@@ -47,17 +53,30 @@ export default function AdminUtilisateurs() {
                   <p className={`text-sm font-medium truncate ${u.actif ? 'text-white' : 'text-gray-500'}`}>{u.email}</p>
                   <p className="text-xs text-gray-500 mt-0.5">Depuis le {new Date(u.created_at).toLocaleDateString('fr-FR')}</p>
                 </div>
-                <span className={`flex-shrink-0 text-xs px-2 py-0.5 rounded-full font-medium ${u.role === 'admin' ? 'bg-amber-500/20 text-amber-400' : 'bg-gray-700 text-gray-400'}`}>
+                <span className={`flex-shrink-0 text-xs px-2 py-0.5 rounded-full font-medium ${
+                  u.role === 'admin' ? 'bg-amber-500/20 text-amber-400' : 'bg-gray-700 text-gray-400'
+                }`}>
                   {u.role === 'admin' ? '⭐ Admin' : '👤 Piégeur'}
                 </span>
               </div>
-              <div className="flex gap-2">
+
+              <div className="flex gap-2 flex-wrap">
+                {/* Voir comme ce piégeur */}
+                {u.role !== 'admin' && u.actif && (
+                  <button onClick={() => handleImpersonate(u)}
+                    className="flex items-center gap-1.5 text-xs px-3 py-2 rounded-lg bg-blue-900/30 text-blue-400 hover:bg-blue-900/50 transition-colors font-medium">
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+                    Voir comme lui
+                  </button>
+                )}
                 <button onClick={() => toggleRole(u.id, u.role)}
                   className="flex-1 text-xs py-2 rounded-lg bg-amber-500/10 text-amber-400 hover:bg-amber-500/20 transition-colors font-medium">
                   {u.role === 'admin' ? 'Retirer admin' : 'Passer admin'}
                 </button>
                 <button onClick={() => toggleActif(u.id, u.actif)}
-                  className={`flex-1 text-xs py-2 rounded-lg font-medium transition-colors ${u.actif ? 'bg-red-900/30 text-red-400' : 'bg-green-900/30 text-green-400'}`}>
+                  className={`flex-1 text-xs py-2 rounded-lg font-medium transition-colors ${
+                    u.actif ? 'bg-red-900/30 text-red-400 hover:bg-red-900/50' : 'bg-green-900/30 text-green-400 hover:bg-green-900/50'
+                  }`}>
                   {u.actif ? 'Désactiver' : 'Réactiver'}
                 </button>
               </div>
