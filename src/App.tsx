@@ -12,6 +12,7 @@ import StatsPage from './pages/StatsPage'
 import ProfilPage from './pages/ProfilPage'
 import AdminDonneurs from './pages/AdminDonneurs'
 import AdminUtilisateurs from './pages/AdminUtilisateurs'
+import RapportPage from './pages/RapportPage'
 
 function AppContent() {
   const { user, loading } = useUser()
@@ -22,7 +23,6 @@ function AppContent() {
     return () => clearTimeout(timer)
   }, [])
 
-  // Afficher le splash les 2.5 premières secondes, peu importe la route
   if (showSplash || loading) return <SplashPage onDone={() => setShowSplash(false)} />
 
   return (
@@ -38,6 +38,7 @@ function AppContent() {
         <Route path="profil"               element={<ProfilPage />} />
         <Route path="admin/donneurs"       element={<AdminDonneurs />} />
         <Route path="admin/utilisateurs"   element={<AdminUtilisateurs />} />
+        <Route path="admin/rapport"        element={<RapportPage />} />
       </Route>
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
@@ -47,7 +48,7 @@ function AppContent() {
 export default function App() {
   return (
     <BrowserRouter>
-<UserProvider>
+      <UserProvider>
         <AppContent />
       </UserProvider>
     </BrowserRouter>

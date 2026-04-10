@@ -58,6 +58,11 @@ export default function ProfilPage() {
             <span>👥 Gérer les utilisateurs</span>
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="m9 18 6-6-6-6"/></svg>
           </button>
+          <button onClick={() => navigate('/admin/rapport')}
+            className="w-full flex items-center justify-between px-4 py-3.5 text-sm text-white hover:bg-gray-700/50 transition-colors border-t border-gray-700/50">
+            <span>📄 Générer un rapport PDF</span>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="m9 18 6-6-6-6"/></svg>
+          </button>
           <button onClick={() => navigate('/admin/donneurs')}
             className="w-full flex items-center justify-between px-4 py-3.5 text-sm text-white hover:bg-gray-700/50 transition-colors border-t border-gray-700/50">
             <span>🏢 Gérer les donneurs d'ordre</span>
