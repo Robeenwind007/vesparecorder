@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import { UserProvider, useUser } from './hooks/useUser'
+import { ThemeProvider } from './hooks/useTheme'
 import Layout from './components/Layout'
 import SplashPage from './pages/SplashPage'
 import IdentificationPage from './pages/IdentificationPage'
@@ -48,9 +49,11 @@ function AppContent() {
 export default function App() {
   return (
     <BrowserRouter>
-      <UserProvider>
-        <AppContent />
-      </UserProvider>
+      <ThemeProvider>
+        <UserProvider>
+          <AppContent />
+        </UserProvider>
+      </ThemeProvider>
     </BrowserRouter>
   )
 }

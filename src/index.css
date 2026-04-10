@@ -3,24 +3,65 @@
 @tailwind utilities;
 
 @layer base {
+  /* ── Variables thème sombre (défaut) ── */
   :root {
     --sat: env(safe-area-inset-top, 0px);
     --sab: env(safe-area-inset-bottom, 0px);
     color-scheme: dark;
+
+    --bg-primary:   #111827;
+    --bg-secondary: #1f2937;
+    --bg-tertiary:  #374151;
+    --bg-card:      rgba(31,41,55,0.8);
+    --border:       rgba(55,65,81,0.5);
+    --border-strong:#374151;
+    --text-primary: #f9fafb;
+    --text-secondary:#9ca3af;
+    --text-muted:   #6b7280;
+    --amber:        #D97706;
+    --amber-light:  #FCD34D;
+    --leaflet-bg:   #1f2937;
+    --leaflet-ctrl: #1f2937;
+    --leaflet-text: #f9fafb;
+    --leaflet-border:#374151;
+    --leaflet-popup:#1f2937;
+  }
+
+  /* ── Thème clair ── */
+  html.light {
+    color-scheme: light;
+
+    --bg-primary:   #f9fafb;
+    --bg-secondary: #ffffff;
+    --bg-tertiary:  #f3f4f6;
+    --bg-card:      rgba(255,255,255,0.9);
+    --border:       rgba(209,213,219,0.7);
+    --border-strong:#d1d5db;
+    --text-primary: #111827;
+    --text-secondary:#4b5563;
+    --text-muted:   #9ca3af;
+    --amber:        #D97706;
+    --amber-light:  #92400e;
+    --leaflet-bg:   #e5e7eb;
+    --leaflet-ctrl: #ffffff;
+    --leaflet-text: #111827;
+    --leaflet-border:#d1d5db;
+    --leaflet-popup:#ffffff;
   }
 
   * { -webkit-tap-highlight-color: transparent; }
 
   body {
-    @apply bg-gray-900 text-white;
+    background-color: var(--bg-primary);
+    color: var(--text-primary);
     font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
     overscroll-behavior: none;
+    transition: background-color 0.2s, color 0.2s;
   }
 
-  /* Scrollbar discrète */
   ::-webkit-scrollbar { width: 3px; }
   ::-webkit-scrollbar-track { background: transparent; }
-  ::-webkit-scrollbar-thumb { @apply bg-gray-700 rounded-full; }
+  ::-webkit-scrollbar-thumb { background: var(--border-strong); border-radius: 9999px; }
 }
 
 @layer utilities {
@@ -31,36 +72,73 @@
   .scrollbar-none { scrollbar-width: none; }
   .scrollbar-none::-webkit-scrollbar { display: none; }
   .active\:scale-98:active { transform: scale(0.98); }
+
+  /* Classes thème dynamique */
+  .bg-theme-primary   { background-color: var(--bg-primary); }
+  .bg-theme-secondary { background-color: var(--bg-secondary); }
+  .bg-theme-tertiary  { background-color: var(--bg-tertiary); }
+  .bg-theme-card      { background-color: var(--bg-card); }
+  .border-theme       { border-color: var(--border); }
+  .border-theme-strong{ border-color: var(--border-strong); }
+  .text-theme-primary { color: var(--text-primary); }
+  .text-theme-secondary{ color: var(--text-secondary); }
+  .text-theme-muted   { color: var(--text-muted); }
 }
 
-/* Leaflet dark mode */
-.leaflet-container { background: #1f2937 !important; }
+/* ── Leaflet thème dynamique ── */
+.leaflet-container {
+  background: var(--leaflet-bg) !important;
+}
 .leaflet-control-zoom a {
-  background: #1f2937 !important;
-  color: #f9fafb !important;
-  border-color: #374151 !important;
+  background: var(--leaflet-ctrl) !important;
+  color: var(--leaflet-text) !important;
+  border-color: var(--leaflet-border) !important;
 }
 .leaflet-popup-content-wrapper {
-  background: #1f2937 !important;
-  color: #f9fafb !important;
-  border: 1px solid #374151;
+  background: var(--leaflet-popup) !important;
+  color: var(--leaflet-text) !important;
+  border: 1px solid var(--leaflet-border);
   border-radius: 12px !important;
-  box-shadow: 0 10px 40px rgba(0,0,0,0.5) !important;
+  box-shadow: 0 10px 40px rgba(0,0,0,0.2) !important;
 }
-.leaflet-popup-tip { background: #1f2937 !important; }
-.leaflet-popup-close-button { color: #9ca3af !important; }
+.leaflet-popup-tip { background: var(--leaflet-popup) !important; }
+.leaflet-popup-close-button { color: var(--text-secondary) !important; }
 
-@keyframes loading {
-  from { width: 0%; }
-  to   { width: 100%; }
+/* ── Mode clair : overrides Tailwind ── */
+html.light .bg-gray-900  { background-color: var(--bg-primary) !important; }
+html.light .bg-gray-800  { background-color: var(--bg-secondary) !important; }
+html.light .bg-gray-800\/80 { background-color: rgba(255,255,255,0.9) !important; }
+html.light .bg-gray-800\/60 { background-color: rgba(255,255,255,0.8) !important; }
+html.light .bg-gray-800\/40 { background-color: rgba(255,255,255,0.6) !important; }
+html.light .bg-gray-800\/50 { background-color: rgba(255,255,255,0.7) !important; }
+html.light .bg-gray-700  { background-color: #e5e7eb !important; }
+html.light .bg-gray-900\/95 { background-color: rgba(249,250,251,0.97) !important; }
+html.light .bg-gray-900\/60 { background-color: rgba(249,250,251,0.85) !important; }
+html.light .text-white   { color: #111827 !important; }
+html.light .text-gray-100{ color: #1f2937 !important; }
+html.light .text-gray-300{ color: #374151 !important; }
+html.light .text-gray-400{ color: #4b5563 !important; }
+html.light .text-gray-500{ color: #6b7280 !important; }
+html.light .text-gray-600{ color: #9ca3af !important; }
+html.light .border-gray-800 { border-color: #e5e7eb !important; }
+html.light .border-gray-700 { border-color: #d1d5db !important; }
+html.light .border-gray-700\/50 { border-color: rgba(209,213,219,0.5) !important; }
+html.light .divide-gray-700\/50 > * + * { border-color: rgba(209,213,219,0.5) !important; }
+html.light .placeholder-gray-500::placeholder { color: #9ca3af !important; }
+html.light .placeholder-gray-600::placeholder { color: #d1d5db !important; }
+
+/* Inputs en mode clair */
+html.light input[type="text"],
+html.light input[type="email"],
+html.light input[type="date"],
+html.light input[type="search"],
+html.light select,
+html.light textarea {
+  background-color: #f9fafb !important;
+  color: #111827 !important;
+  border-color: #d1d5db !important;
 }
-@keyframes fade-in {
-  from { opacity: 0; transform: translateY(12px); }
-  to   { opacity: 1; transform: translateY(0); }
-}
-.animate-loading {
-  animation: loading 2.2s ease-in-out forwards;
-}
-.animate-fade-in {
-  animation: fade-in 0.6s ease-out forwards;
-}
+html.light input::placeholder { color: #9ca3af !important; }
+
+/* Scrollbar clair */
+html.light ::-webkit-scrollbar-thumb { background: #d1d5db; }
