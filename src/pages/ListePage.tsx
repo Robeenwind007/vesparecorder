@@ -65,10 +65,26 @@ export default function ListePage() {
     return true
   })
 
-  // Données filtrées par période pour l'export
-  const exportData = obs.filter(o =>
-    o.date_observation >= exportDebut && o.date_observation <= exportFin
-  ).sort((a, b) => a.date_observation.localeCompare(b.date_observation))
+  // Export = filtres actifs (espèce, statut, recherche, année) + période dates
+  const exportData = obs.filter(o => {
+    // Période
+    if (o.date_observation < exportDebut || o.date_observation > exportFin) return false
+    // Filtres actifs de la liste
+    if (filtreEsp && o.espece !== filtreEsp)  return false
+    if (filtreRet === 'oui' && !o.retire)     return false
+    if (filtreRet === 'non' &&  o.retire)     return false
+    if (search) {
+      const s = search.toLowerCase()
+      return (
+        o.donneur_ordre?.toLowerCase().includes(s) ||
+        o.beneficiaire?.toLowerCase().includes(s) ||
+        o.adresse?.toLowerCase().includes(s) ||
+        o.espece.toLowerCase().includes(s) ||
+        o.emplacement?.toLowerCase().includes(s)
+      )
+    }
+    return true
+  }).sort((a, b) => a.date_observation.localeCompare(b.date_observation))
 
   const fmt = (d: string) => {
     const [y, m, j] = d.split('-'); return `${j}/${m}/${y}`
@@ -99,7 +115,19 @@ export default function ListePage() {
       doc.text('VespaRecorder — Mes interventions', W / 2, 17, { align: 'center' })
       doc.setFont('helvetica', 'normal')
       doc.setFontSize(9)
-      doc.text(`Piégeur : ${user?.email}   •   Période : ${fmt(exportDebut)} au ${fmt(exportFin)}   •   Généré le ${fmt(new Date().toISOString().split('T')[0])}`, W / 2, 25, { align: 'center' })
+      doc.setTextColor(...WHITE)
+      const filtresActifs = [
+        filtreEsp ? `Espèce : ${filtreEsp}` : null,
+        filtreRet === 'oui' ? 'Retirés seulement' : filtreRet === 'non' ? 'Non retirés seulement' : null,
+        search ? `Recherche : "${search}"` : null,
+      ].filter(Boolean).join('  •  ')
+      const ligne2 = `Piégeur : ${user?.email}   •   Période : ${fmt(exportDebut)} au ${fmt(exportFin)}   •   Généré le ${fmt(new Date().toISOString().split('T')[0])}`
+      doc.text(ligne2, W / 2, filtresActifs ? 22 : 25, { align: 'center' })
+      if (filtresActifs) {
+        doc.setFontSize(8)
+        doc.setTextColor(217, 119, 6)
+        doc.text(`Filtres actifs : ${filtresActifs}`, W / 2, 28, { align: 'center' })
+      }
 
       // Tableau
       autoTable(doc, {
@@ -232,10 +260,16 @@ export default function ListePage() {
       const total   = exportData.length
       const retires = exportData.filter(o => o.retire).length
       const byEsp   = exportData.reduce<Record<string, number>>((a, o) => { a[o.espece] = (a[o.espece] ?? 0) + 1; return a }, {})
+      const filtresExcel = [
+        filtreEsp || 'Toutes',
+        filtreRet === 'oui' ? 'Retirés' : filtreRet === 'non' ? 'Non retirés' : 'Tous',
+        search ? `"${search}"` : null,
+      ].filter(Boolean).join(', ')
       const recap = [
         ['Récapitulatif', ''],
         ['Période', `${fmt(exportDebut)} au ${fmt(exportFin)}`],
         ['Piégeur', user?.email ?? ''],
+        ['Filtres appliqués', filtresExcel],
         ['Total interventions', total],
         ['Nids retirés', retires],
         ['Nids laissés', total - retires],
@@ -308,6 +342,9 @@ export default function ListePage() {
             <p className="text-xs text-gray-500">
               {exportData.length} observation{exportData.length > 1 ? 's' : ''} sur cette période
               {exportData.length > 0 && ` · ${exportData.filter(o => o.retire).length} retirées`}
+              {(filtreEsp || filtreRet || search) && (
+                <span className="text-amber-500/70"> · filtres actifs</span>
+              )}
             </p>
 
             {/* Boutons export */}
