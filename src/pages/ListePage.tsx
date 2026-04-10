@@ -22,10 +22,7 @@ export default function ListePage() {
 
   // Export
   const [showExport, setShowExport]   = useState(false)
-  const [exportDebut, setExportDebut] = useState(() => {
-    const d = new Date(); d.setMonth(0); d.setDate(1)
-    return d.toISOString().split('T')[0]
-  })
+  const [exportDebut, setExportDebut] = useState('2025-01-01')
   const [exportFin, setExportFin]     = useState(() => new Date().toISOString().split('T')[0])
   const [exportDonneur, setExportDonneur] = useState('')
   const [donneurs, setDonneurs]           = useState<DonneurOrdre[]>([])
@@ -346,6 +343,16 @@ export default function ListePage() {
                 <input type="date" value={exportFin} onChange={e => setExportFin(e.target.value)}
                   className="w-full bg-gray-800 border border-gray-700 rounded-xl px-3 py-2 text-white text-sm focus:outline-none focus:border-amber-500" />
               </div>
+            </div>
+
+            {/* Filtre donneur d'ordre */}
+            <div className="space-y-1">
+              <label className="text-xs text-gray-500">Donneur d'ordre</label>
+              <select value={exportDonneur} onChange={e => setExportDonneur(e.target.value)}
+                className="w-full bg-gray-800 border border-gray-700 rounded-xl px-3 py-2 text-white text-sm focus:outline-none focus:border-amber-500 appearance-none">
+                <option value="">Tous les donneurs</option>
+                {donneurs.map(d => <option key={d.id} value={d.nom}>{d.nom}</option>)}
+              </select>
             </div>
 
             {/* Compteur rapide */}
