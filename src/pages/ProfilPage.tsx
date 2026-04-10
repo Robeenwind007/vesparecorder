@@ -78,7 +78,7 @@ export default function ProfilPage() {
         </div>
         <div className="divide-y divide-gray-700/50">
           {[
-            ['Version', '2.0.0'],
+            ['Version', '2.1.0'],
             ['Auteur', 'Olivier BERNARD'],
             ['Base de données', '● Supabase'],
           ].map(([label, val]) => (

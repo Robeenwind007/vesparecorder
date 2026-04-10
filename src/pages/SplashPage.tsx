@@ -22,7 +22,7 @@ export default function SplashPage({ onDone }: SplashProps) {
       </div>
 
       <div className="absolute bottom-10 text-center space-y-1">
-        <p className="text-xs text-gray-600">Version 2.0.0</p>
+        <p className="text-xs text-gray-600">Version 2.1.0</p>
         <p className="text-xs text-gray-600">© Olivier BERNARD 2026</p>
       </div>
 
