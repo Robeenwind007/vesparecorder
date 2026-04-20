@@ -1,9 +1,14 @@
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 import { VitePWA } from 'vite-plugin-pwa'
+import { copyFileSync } from 'fs'
 
 export default defineConfig({
   plugins: [
+    {
+      name: 'cloudflare-spa',
+      closeBundle() { copyFileSync('dist/index.html', 'dist/404.html') }
+    },
     react(),
     VitePWA({
       registerType: 'autoUpdate',
