@@ -2,9 +2,11 @@
 
 ---
 
-## [2.1.0] — Avril 2026
+## [2.1.2] — Avril 2026
 
 ### Nouvelles fonctionnalités
+- **Filtre année sur la carte** — sélecteur année avec année en cours par défaut, option « Toutes années » pour tout voir
+- Compteur de la carte aligné sur le filtre année actif
 - **Export rapport PDF et Excel** depuis l'onglet Observations (bouton 📄 Rapport)
   - Filtres : période (date début / date fin), donneur d'ordre, espèce, statut, recherche texte
   - PDF A4 paysage avec en-tête, tableau coloré et récapitulatif

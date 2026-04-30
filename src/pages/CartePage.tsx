@@ -35,6 +35,8 @@ export default function CartePage() {
   const [obs, setObs]                   = useState<Observation[]>([])
   const [filtreEspece, setFiltreEspece] = useState('all')
   const [filtreRetire, setFiltreRetire] = useState('all')
+  const [filtreAnnee, setFiltreAnnee]   = useState<string>(String(new Date().getFullYear()))
+  const [annees, setAnnees]             = useState<string[]>([])
   // Admin peut basculer entre "mes obs" et "toutes"
   const [voirTout, setVoirTout]         = useState(false)
 
@@ -52,7 +54,18 @@ export default function CartePage() {
   useEffect(() => {
     if (!user) return
     const emailFiltre = isAdmin && voirTout ? undefined : user.email
-    getObservations({ emailFiltre }).then(data => { setObs(data); setLoading(false) })
+    getObservations({ emailFiltre }).then(data => {
+      setObs(data)
+      const anneesPresentes = [...new Set(
+        data.map(o => o.date_observation.substring(0, 4))
+      )].sort((a, b) => b.localeCompare(a))
+      setAnnees(anneesPresentes)
+      const anneeActuelle = String(new Date().getFullYear())
+      if (anneesPresentes.includes(anneeActuelle)) setFiltreAnnee(anneeActuelle)
+      else if (anneesPresentes.length > 0) setFiltreAnnee(anneesPresentes[0])
+      else setFiltreAnnee('all')
+      setLoading(false)
+    })
   }, [user, isAdmin, voirTout])
 
   useEffect(() => {
@@ -61,6 +74,7 @@ export default function CartePage() {
     obs
       .filter(o => {
         if (!o.latitude || !o.longitude) return false
+        if (filtreAnnee !== 'all' && !o.date_observation.startsWith(filtreAnnee)) return false
         if (filtreEspece !== 'all' && o.espece !== filtreEspece) return false
         if (filtreRetire === 'actif'  &&  o.retire) return false
         if (filtreRetire === 'retire' && !o.retire) return false
@@ -87,9 +101,12 @@ export default function CartePage() {
         `, { maxWidth: 220 })
         marker.addTo(layerRef.current!)
       })
-  }, [obs, filtreEspece, filtreRetire])
+  }, [obs, filtreAnnee, filtreEspece, filtreRetire])
 
-  const withGPS = obs.filter(o => o.latitude && o.longitude).length
+  const obsAnnee = filtreAnnee === 'all'
+    ? obs
+    : obs.filter(o => o.date_observation.startsWith(filtreAnnee))
+  const withGPS = obsAnnee.filter(o => o.latitude && o.longitude).length
 
   return (
     <div className="relative h-full">
@@ -97,6 +114,11 @@ export default function CartePage() {
 
       {/* Filtres + toggle admin */}
       <div className="absolute top-3 left-3 right-3 z-[1000] flex gap-2 flex-wrap">
+        <select value={filtreAnnee} onChange={e => setFiltreAnnee(e.target.value)}
+          className="bg-gray-900/95 backdrop-blur border border-gray-700 text-white text-sm rounded-xl px-3 py-2 focus:outline-none">
+          <option value="all">Toutes années</option>
+          {annees.map(a => <option key={a} value={a}>{a}</option>)}
+        </select>
         <select value={filtreEspece} onChange={e => setFiltreEspece(e.target.value)}
           className="bg-gray-900/95 backdrop-blur border border-gray-700 text-white text-sm rounded-xl px-3 py-2 focus:outline-none">
           <option value="all">Toutes espèces</option>
@@ -122,7 +144,7 @@ export default function CartePage() {
 
       {/* Compteur */}
       <div className="absolute bottom-20 left-3 z-[1000] bg-gray-900/95 backdrop-blur border border-gray-700 rounded-xl px-3 py-2 text-xs text-gray-300">
-        {loading ? <Spinner size={14} /> : <span>{withGPS} / {obs.length} géolocalisées</span>}
+        {loading ? <Spinner size={14} /> : <span>{withGPS} / {obsAnnee.length} géolocalisées</span>}
       </div>
 
       {/* Légende */}
