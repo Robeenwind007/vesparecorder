@@ -2,15 +2,15 @@ import { NavLink, Outlet } from 'react-router-dom'
 import { useUser } from '../hooks/useUser'
 
 const NAV = [
-  { to: '/',        icon: MapIcon,   label: 'Carte'        },
-  { to: '/liste',   icon: ListIcon,  label: 'Observations' },
-  { to: '/nouveau', icon: PlusIcon,  label: 'Saisir'       },
-  { to: '/stats',   icon: ChartIcon, label: 'Stats'        },
-  { to: '/profil',  icon: UserIcon,  label: 'Profil'       },
+  { to: '/',          icon: MapIcon,    label: 'Carte'      },
+  { to: '/liste',     icon: ListIcon,   label: 'Traitement' },
+  { to: '/piegeages', icon: SquareIcon, label: 'Pièges'     },
+  { to: '/stats',     icon: ChartIcon,  label: 'Stats'      },
+  { to: '/profil',    icon: UserIcon,   label: 'Profil'     },
 ]
 
 export default function Layout() {
-  const { user, realUser, isAdmin, isImpersonating, stopImpersonating } = useUser()
+  const { user, isAdmin, isImpersonating, stopImpersonating } = useUser()
 
   return (
     <div className="flex flex-col h-dvh bg-gray-900 text-white">
@@ -79,8 +79,8 @@ function MapIcon({ size }: { size: number }) {
 function ListIcon({ size }: { size: number }) {
   return <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><circle cx="3" cy="6" r="1" fill="currentColor"/><circle cx="3" cy="12" r="1" fill="currentColor"/><circle cx="3" cy="18" r="1" fill="currentColor"/></svg>
 }
-function PlusIcon({ size }: { size: number }) {
-  return <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"><circle cx="12" cy="12" r="9"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg>
+function SquareIcon({ size }: { size: number }) {
+  return <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><rect x="4" y="4" width="16" height="16" rx="2"/><path d="M9 9h6v6H9z" fill="currentColor" stroke="none"/></svg>
 }
 function ChartIcon({ size }: { size: number }) {
   return <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/><line x1="2" y1="20" x2="22" y2="20"/></svg>

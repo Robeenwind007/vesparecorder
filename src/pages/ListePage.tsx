@@ -472,6 +472,12 @@ export default function ListePage() {
           </Card>
         ))}
       </div>
+
+      {/* FAB Saisir une nouvelle observation */}
+      <button onClick={() => navigate('/nouveau')}
+        className="fixed bottom-24 right-4 z-[1000] w-14 h-14 bg-amber-500 rounded-full flex items-center justify-center shadow-lg shadow-amber-500/40 active:scale-95 transition-transform text-white text-2xl font-light">
+        +
+      </button>
     </div>
   )
 }

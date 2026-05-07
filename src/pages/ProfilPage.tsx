@@ -99,12 +99,27 @@ export default function ProfilPage() {
           </button>
           <button onClick={() => navigate('/admin/rapport')}
             className="w-full flex items-center justify-between px-4 py-3.5 text-sm hover:bg-gray-700/50 transition-colors border-t border-gray-700/50">
-            <span>📄 Générer un rapport PDF</span>
+            <span>📄 Rapport traitements PDF</span>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="m9 18 6-6-6-6"/></svg>
+          </button>
+          <button onClick={() => navigate('/admin/rapport-pieges')}
+            className="w-full flex items-center justify-between px-4 py-3.5 text-sm hover:bg-gray-700/50 transition-colors border-t border-gray-700/50">
+            <span>📄 Rapport pièges PDF</span>
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="m9 18 6-6-6-6"/></svg>
           </button>
           <button onClick={() => navigate('/admin/donneurs')}
             className="w-full flex items-center justify-between px-4 py-3.5 text-sm hover:bg-gray-700/50 transition-colors border-t border-gray-700/50">
             <span>🏢 Gérer les donneurs d'ordre</span>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="m9 18 6-6-6-6"/></svg>
+          </button>
+          <button onClick={() => navigate('/admin/types-pieges')}
+            className="w-full flex items-center justify-between px-4 py-3.5 text-sm hover:bg-gray-700/50 transition-colors border-t border-gray-700/50">
+            <span>🪤 Gérer les types de pièges</span>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="m9 18 6-6-6-6"/></svg>
+          </button>
+          <button onClick={() => navigate('/admin/appats')}
+            className="w-full flex items-center justify-between px-4 py-3.5 text-sm hover:bg-gray-700/50 transition-colors border-t border-gray-700/50">
+            <span>🍯 Gérer les appâts</span>
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="m9 18 6-6-6-6"/></svg>
           </button>
         </div>
@@ -117,7 +132,7 @@ export default function ProfilPage() {
         </div>
         <div className="divide-y divide-gray-700/50">
           {[
-            ['Version', '2.1.2'],
+            ['Version', '2.2.2'],
             ['Auteur', 'Olivier BERNARD'],
             ['Base de données', '● Supabase'],
           ].map(([label, val]) => (

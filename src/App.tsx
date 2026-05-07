@@ -14,6 +14,13 @@ import ProfilPage from './pages/ProfilPage'
 import AdminDonneurs from './pages/AdminDonneurs'
 import AdminUtilisateurs from './pages/AdminUtilisateurs'
 import RapportPage from './pages/RapportPage'
+// ── Piégeages ────────────────────────────────────────────────
+import ListePiegeagesPage from './pages/ListePiegeagesPage'
+import FormulairePiegeage from './pages/FormulairePiegeage'
+import PiegeageDetail from './pages/PiegeageDetail'
+import AdminTypesPieges from './pages/AdminTypesPieges'
+import AdminAppats from './pages/AdminAppats'
+import RapportPiegeagesPage from './pages/RapportPiegeagesPage'
 
 function AppContent() {
   const { user, loading } = useUser()
@@ -35,11 +42,20 @@ function AppContent() {
         <Route path="nouveau"              element={<FormulaireIntervention />} />
         <Route path="observation/:id"      element={<ObservationDetail />} />
         <Route path="observation/:id/edit" element={<FormulaireIntervention />} />
+        {/* ── Piégeages ── */}
+        <Route path="piegeages"            element={<ListePiegeagesPage />} />
+        <Route path="piegeages/nouveau"    element={<FormulairePiegeage />} />
+        <Route path="piegeages/:id"        element={<PiegeageDetail />} />
+        <Route path="piegeages/:id/edit"   element={<FormulairePiegeage />} />
+        {/* ── Reste ── */}
         <Route path="stats"                element={<StatsPage />} />
         <Route path="profil"               element={<ProfilPage />} />
         <Route path="admin/donneurs"       element={<AdminDonneurs />} />
+        <Route path="admin/types-pieges"   element={<AdminTypesPieges />} />
+        <Route path="admin/appats"         element={<AdminAppats />} />
         <Route path="admin/utilisateurs"   element={<AdminUtilisateurs />} />
         <Route path="admin/rapport"        element={<RapportPage />} />
+        <Route path="admin/rapport-pieges" element={<RapportPiegeagesPage />} />
       </Route>
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
