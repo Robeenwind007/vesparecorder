@@ -2,7 +2,7 @@ interface SplashProps {
   onDone?: () => void
 }
 
-export default function SplashPage({ onDone }: SplashProps) {
+export default function SplashPage({ onDone: _onDone }: SplashProps) {
   return (
     <div className="min-h-dvh bg-gray-900 flex flex-col items-center justify-center gap-8">
       <div className="flex flex-col items-center gap-6">
@@ -22,7 +22,7 @@ export default function SplashPage({ onDone }: SplashProps) {
       </div>
 
       <div className="absolute bottom-10 text-center space-y-1">
-        <p className="text-xs text-gray-600">Version 2.2.2</p>
+        <p className="text-xs text-gray-600">Version {__APP_VERSION__}</p>
         <p className="text-xs text-gray-600">© Olivier BERNARD 2026</p>
       </div>
 

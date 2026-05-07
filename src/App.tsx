@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import { UserProvider, useUser } from './hooks/useUser'
 import { ThemeProvider } from './hooks/useTheme'
@@ -21,17 +21,33 @@ import PiegeageDetail from './pages/PiegeageDetail'
 import AdminTypesPieges from './pages/AdminTypesPieges'
 import AdminAppats from './pages/AdminAppats'
 import RapportPiegeagesPage from './pages/RapportPiegeagesPage'
+import AdminSauvegardePage from './pages/AdminSauvegardePage'
 
 function AppContent() {
   const { user, loading } = useUser()
-  const [showSplash, setShowSplash] = useState(true)
+  // Splash uniquement au démarrage initial : il s'affiche tant qu'il n'a jamais
+  // été masqué. Une fois masqué, il ne se réaffichera plus jamais (même si
+  // `loading` repasse à true lors de re-vérifications du user).
+  const [splashDone, setSplashDone] = useState(false)
+  const initialLoadingRef = useRef(true)
 
+  // Marqueur : on a fini le tout premier chargement
   useEffect(() => {
-    const timer = setTimeout(() => setShowSplash(false), 2500)
+    if (!loading) {
+      initialLoadingRef.current = false
+    }
+  }, [loading])
+
+  // Timer minimum d'affichage du splash (2.5s)
+  useEffect(() => {
+    const timer = setTimeout(() => setSplashDone(true), 2500)
     return () => clearTimeout(timer)
   }, [])
 
-  if (showSplash || loading) return <SplashPage onDone={() => setShowSplash(false)} />
+  // Splash s'affiche uniquement au tout premier chargement, jamais après
+  const showSplash = !splashDone || (initialLoadingRef.current && loading)
+
+  if (showSplash) return <SplashPage onDone={() => setSplashDone(true)} />
 
   return (
     <Routes>
@@ -56,6 +72,7 @@ function AppContent() {
         <Route path="admin/utilisateurs"   element={<AdminUtilisateurs />} />
         <Route path="admin/rapport"        element={<RapportPage />} />
         <Route path="admin/rapport-pieges" element={<RapportPiegeagesPage />} />
+        <Route path="admin/sauvegarde"     element={<AdminSauvegardePage />} />
       </Route>
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
