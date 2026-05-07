@@ -31,3 +31,7 @@ pnpm-debug.log*
 
 # TypeScript
 *.tsbuildinfo
+
+# Fichiers temporaires nano
+.env.local~
+*~
