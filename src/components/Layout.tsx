@@ -17,7 +17,7 @@ export default function Layout() {
 
       {/* Bannière impersonation */}
       {isImpersonating && (
-        <div className="flex items-center justify-between px-4 py-2 bg-amber-500 text-black text-xs font-medium">
+        <div className="flex items-center justify-between px-4 py-2 bg-amber-500 text-black text-xs font-medium safe-top">
           <span>👁 Vue de <strong>{user?.email}</strong></span>
           <button
             onClick={stopImpersonating}
@@ -29,7 +29,7 @@ export default function Layout() {
       )}
 
       {/* Header */}
-      <header className="flex items-center gap-3 px-4 py-3 bg-gray-900 border-b border-gray-800 safe-top">
+      <header className={`flex items-center gap-3 px-4 py-3 bg-gray-900 border-b border-gray-800 ${isImpersonating ? '' : 'safe-top'}`}>
         <div className="w-8 h-8 rounded-lg bg-amber-500 flex items-center justify-center text-black font-bold text-sm flex-shrink-0">
           V
         </div>
