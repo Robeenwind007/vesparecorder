@@ -1,16 +1,28 @@
 import { NavLink, Outlet } from 'react-router-dom'
 import { useUser } from '../hooks/useUser'
 
-const NAV = [
-  { to: '/',          icon: MapIcon,    label: 'Carte'      },
-  { to: '/liste',     icon: ListIcon,   label: 'Traitement' },
-  { to: '/piegeages', icon: SquareIcon, label: 'Pièges'     },
-  { to: '/stats',     icon: ChartIcon,  label: 'Stats'      },
-  { to: '/profil',    icon: UserIcon,   label: 'Profil'     },
-]
+interface NavItem {
+  to: string
+  icon: (props: { size: number }) => JSX.Element
+  label: string
+  show: boolean   // si false → onglet masqué
+}
 
 export default function Layout() {
-  const { user, isAdmin, isImpersonating, stopImpersonating } = useUser()
+  const {
+    user, isAdmin, isImpersonating, stopImpersonating,
+    hasModuleTraitement, hasModulePiegeage,
+  } = useUser()
+
+  // Construire la nav dynamiquement selon les modules autorisés
+  const NAV: NavItem[] = [
+    { to: '/',          icon: MapIcon,    label: 'Carte',      show: true },
+    { to: '/liste',     icon: ListIcon,   label: 'Traitement', show: hasModuleTraitement },
+    { to: '/piegeages', icon: SquareIcon, label: 'Pièges',     show: hasModulePiegeage   },
+    { to: '/stats',     icon: ChartIcon,  label: 'Stats',      show: true },
+    { to: '/profil',    icon: UserIcon,   label: 'Profil',     show: true },
+  ]
+  const visibleNav = NAV.filter(n => n.show)
 
   return (
     <div className="flex flex-col h-dvh bg-gray-900 text-white">
@@ -56,7 +68,7 @@ export default function Layout() {
 
       {/* Navigation bottom */}
       <nav className="flex bg-gray-900 border-t border-gray-800 safe-bottom">
-        {NAV.map(({ to, icon: Icon, label }) => (
+        {visibleNav.map(({ to, icon: Icon, label }) => (
           <NavLink key={to} to={to} end={to === '/'}
             className={({ isActive }) =>
               `flex-1 flex flex-col items-center gap-1 py-3 text-xs transition-colors ${

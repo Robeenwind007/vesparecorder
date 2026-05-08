@@ -11,6 +11,8 @@ export interface Utilisateur {
   nom: string | null
   role: 'admin' | 'piegeur'
   actif: boolean
+  module_traitement: boolean
+  module_piegeage: boolean
   created_at: string
 }
 

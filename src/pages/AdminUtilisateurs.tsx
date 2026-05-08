@@ -28,8 +28,16 @@ export default function AdminUtilisateurs() {
     setUsers(u => u.map(x => x.id === id ? { ...x, actif: !actif } : x))
   }
 
+  const toggleModule = async (id: string, module: 'module_traitement' | 'module_piegeage', current: boolean) => {
+    await supabase.from('utilisateurs').update({ [module]: !current }).eq('id', id)
+    setUsers(u => u.map(x => x.id === id ? { ...x, [module]: !current } : x))
+  }
+
   const handleImpersonate = (u: Utilisateur) => {
-    impersonate({ email: u.email, nom: u.nom, role: u.role, actif: u.actif })
+    impersonate({
+      email: u.email, nom: u.nom, role: u.role, actif: u.actif,
+      module_traitement: u.module_traitement, module_piegeage: u.module_piegeage,
+    })
     navigate('/')
   }
 
@@ -60,8 +68,37 @@ export default function AdminUtilisateurs() {
                 </span>
               </div>
 
+              {/* Modules — uniquement pour les piégeurs (admin a tout par défaut) */}
+              {u.role !== 'admin' && (
+                <div className="bg-gray-900/40 border border-gray-700/50 rounded-xl p-3 space-y-2">
+                  <p className="text-[10px] uppercase tracking-wide text-gray-500 font-medium">Modules autorisés</p>
+                  <div className="grid grid-cols-2 gap-2">
+                    <ModuleToggle
+                      label="Traitement"
+                      icon="🐝"
+                      enabled={u.module_traitement}
+                      onChange={() => toggleModule(u.id, 'module_traitement', u.module_traitement)}
+                    />
+                    <ModuleToggle
+                      label="Piégeage"
+                      icon="🪤"
+                      enabled={u.module_piegeage}
+                      onChange={() => toggleModule(u.id, 'module_piegeage', u.module_piegeage)}
+                    />
+                  </div>
+                  {!u.module_traitement && !u.module_piegeage && (
+                    <p className="text-xs text-amber-500/80">⚠️ Aucun module activé : l'utilisateur ne pourra rien saisir.</p>
+                  )}
+                </div>
+              )}
+
+              {u.role === 'admin' && (
+                <div className="bg-amber-500/5 border border-amber-500/20 rounded-xl px-3 py-2">
+                  <p className="text-xs text-amber-400/80">⭐ Les administrateurs ont tous les modules par défaut.</p>
+                </div>
+              )}
+
               <div className="flex gap-2 flex-wrap">
-                {/* Voir comme ce piégeur */}
                 {u.role !== 'admin' && u.actif && (
                   <button onClick={() => handleImpersonate(u)}
                     className="flex items-center gap-1.5 text-xs px-3 py-2 rounded-lg bg-blue-900/30 text-blue-400 hover:bg-blue-900/50 transition-colors font-medium">
@@ -85,5 +122,37 @@ export default function AdminUtilisateurs() {
         ))}
       </div>
     </div>
+  )
+}
+
+// ──────────────────────────────────────────────────────────────
+// Toggle module (switch ON/OFF)
+// ──────────────────────────────────────────────────────────────
+function ModuleToggle({
+  label, icon, enabled, onChange,
+}: {
+  label: string; icon: string; enabled: boolean; onChange: () => void
+}) {
+  return (
+    <button onClick={onChange}
+      className={`flex items-center justify-between gap-2 px-3 py-2 rounded-xl border text-left transition-all ${
+        enabled
+          ? 'bg-amber-500/15 border-amber-500/40'
+          : 'bg-gray-800/40 border-gray-700/50'
+      }`}
+    >
+      <span className="flex items-center gap-2 min-w-0">
+        <span className="text-base">{icon}</span>
+        <span className={`text-sm font-medium truncate ${enabled ? 'text-amber-300' : 'text-gray-500'}`}>{label}</span>
+      </span>
+      {/* Switch */}
+      <span className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors flex-shrink-0 ${
+        enabled ? 'bg-amber-500' : 'bg-gray-600'
+      }`}>
+        <span className={`inline-block h-3.5 w-3.5 transform rounded-full bg-white transition-transform ${
+          enabled ? 'translate-x-[1.25rem]' : 'translate-x-[0.2rem]'
+        }`} />
+      </span>
+    </button>
   )
 }

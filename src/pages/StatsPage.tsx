@@ -4,35 +4,51 @@ import { getPiegeages, totalCapturesPiegeage } from '../lib/piegeage'
 import { useUser } from '../hooks/useUser'
 import type { StatsDashboard, Observation } from '../types'
 import type { PiegeageAvecCaptures } from '../types/piegeage'
-import { StatCard, Spinner } from '../components/UI'
+import { StatCard, Spinner, Empty } from '../components/UI'
 import { ESPECE_COLORS } from '../types'
 
 type Tab = 'observations' | 'piegeages'
 
 export default function StatsPage() {
-  const { user, isAdmin } = useUser()
+  const { user, isAdmin, hasModuleTraitement, hasModulePiegeage } = useUser()
   const [stats, setStats]       = useState<StatsDashboard | null>(null)
   const [obs, setObs]           = useState<Observation[]>([])
   const [pieges, setPieges]     = useState<PiegeageAvecCaptures[]>([])
   const [voirTout, setVoirTout] = useState(false)
   const [loading, setLoading]   = useState(true)
-  const [tab, setTab]           = useState<Tab>('observations')
+
+  // Onglet par défaut : le premier module disponible
+  const initialTab: Tab = hasModuleTraitement ? 'observations' : 'piegeages'
+  const [tab, setTab]   = useState<Tab>(initialTab)
 
   useEffect(() => {
     if (!user) return
     const emailFiltre = isAdmin && voirTout ? undefined : user.email
     setLoading(true)
     Promise.all([
-      getStats(emailFiltre),
-      getObservations({ emailFiltre }),
-      getPiegeages({ emailFiltre }),
+      hasModuleTraitement ? getStats(emailFiltre)            : Promise.resolve(null),
+      hasModuleTraitement ? getObservations({ emailFiltre }) : Promise.resolve([]),
+      hasModulePiegeage   ? getPiegeages({ emailFiltre })    : Promise.resolve([]),
     ]).then(([s, o, p]) => {
-      setStats(s); setObs(o); setPieges(p); setLoading(false)
+      setStats(s as StatsDashboard | null)
+      setObs(o as Observation[])
+      setPieges(p as PiegeageAvecCaptures[])
+      setLoading(false)
     })
-  }, [user, isAdmin, voirTout])
+  }, [user, isAdmin, voirTout, hasModuleTraitement, hasModulePiegeage])
 
   if (loading) return <div className="flex items-center justify-center h-full"><Spinner size={32} /></div>
-  if (!stats)  return null
+
+  // Aucun module activé : message dédié
+  if (!hasModuleTraitement && !hasModulePiegeage) {
+    return (
+      <div className="px-4 py-8">
+        <Empty message="Aucun module activé. Contactez un administrateur." icon="🔒" />
+      </div>
+    )
+  }
+
+  const showTabs = hasModuleTraitement && hasModulePiegeage
 
   return (
     <div className="overflow-y-auto pb-24 px-4 py-4 space-y-5">
@@ -49,40 +65,43 @@ export default function StatsPage() {
         )}
       </div>
 
-      {/* Onglets */}
-      <div className="bg-gray-800/80 border border-gray-700/50 rounded-2xl p-1 flex gap-1">
-        <button
-          onClick={() => setTab('observations')}
-          className={`flex-1 py-2.5 px-3 rounded-xl text-sm font-medium transition-all ${
-            tab === 'observations'
-              ? 'bg-amber-500 text-black'
-              : 'text-gray-400 hover:text-white'
-          }`}
-        >
-          Observations
-          <span className="ml-2 text-xs opacity-70">{obs.length}</span>
-        </button>
-        <button
-          onClick={() => setTab('piegeages')}
-          className={`flex-1 py-2.5 px-3 rounded-xl text-sm font-medium transition-all ${
-            tab === 'piegeages'
-              ? 'bg-amber-500 text-black'
-              : 'text-gray-400 hover:text-white'
-          }`}
-        >
-          Piégeages
-          <span className="ml-2 text-xs opacity-70">{pieges.length}</span>
-        </button>
-      </div>
+      {/* Onglets — uniquement si les 2 modules sont actifs */}
+      {showTabs && (
+        <div className="bg-gray-800/80 border border-gray-700/50 rounded-2xl p-1 flex gap-1">
+          <button
+            onClick={() => setTab('observations')}
+            className={`flex-1 py-2.5 px-3 rounded-xl text-sm font-medium transition-all ${
+              tab === 'observations' ? 'bg-amber-500 text-black' : 'text-gray-400 hover:text-white'
+            }`}
+          >
+            Observations
+            <span className="ml-2 text-xs opacity-70">{obs.length}</span>
+          </button>
+          <button
+            onClick={() => setTab('piegeages')}
+            className={`flex-1 py-2.5 px-3 rounded-xl text-sm font-medium transition-all ${
+              tab === 'piegeages' ? 'bg-amber-500 text-black' : 'text-gray-400 hover:text-white'
+            }`}
+          >
+            Piégeages
+            <span className="ml-2 text-xs opacity-70">{pieges.length}</span>
+          </button>
+        </div>
+      )}
 
-      {tab === 'observations' && <StatsObservations stats={stats} obs={obs} />}
-      {tab === 'piegeages'    && <StatsPiegeages pieges={pieges} />}
+      {/* Contenu selon onglet et modules */}
+      {hasModuleTraitement && (showTabs ? tab === 'observations' : true) && stats && (
+        <StatsObservations stats={stats} obs={obs} />
+      )}
+      {hasModulePiegeage   && (showTabs ? tab === 'piegeages'    : !hasModuleTraitement) && (
+        <StatsPiegeages pieges={pieges} />
+      )}
     </div>
   )
 }
 
 // ────────────────────────────────────────────────────────────────
-// SECTION OBSERVATIONS (identique à la page existante)
+// SECTION OBSERVATIONS
 // ────────────────────────────────────────────────────────────────
 function StatsObservations({ stats, obs }: { stats: StatsDashboard; obs: Observation[] }) {
   const byEspece = obs.reduce<Record<string, number>>((a, o) => { a[o.espece] = (a[o.espece] ?? 0) + 1; return a }, {})
@@ -95,7 +114,6 @@ function StatsObservations({ stats, obs }: { stats: StatsDashboard; obs: Observa
 
   return (
     <div className="space-y-6">
-      {/* Chiffres clés */}
       <div className="grid grid-cols-2 gap-3">
         <StatCard label="Total"       value={stats.total_observations} color="amber" />
         <StatCard label="Cette année" value={stats.cette_annee}        color="amber" />
@@ -105,7 +123,6 @@ function StatsObservations({ stats, obs }: { stats: StatsDashboard; obs: Observa
         <StatCard label="Secondaires" value={stats.total_secondaires}  color="blue" />
       </div>
 
-      {/* Taux de traitement */}
       {stats.total_observations > 0 && (
         <div className="bg-gray-800/80 border border-gray-700/50 rounded-2xl p-4 space-y-3">
           <p className="text-xs text-gray-500 uppercase tracking-wide">Taux de traitement</p>
@@ -122,7 +139,6 @@ function StatsObservations({ stats, obs }: { stats: StatsDashboard; obs: Observa
         </div>
       )}
 
-      {/* Par espèce */}
       <div className="bg-gray-800/80 border border-gray-700/50 rounded-2xl p-4 space-y-3">
         <p className="text-xs text-gray-500 uppercase tracking-wide">Par espèce</p>
         {Object.entries(byEspece).sort((a, b) => b[1] - a[1]).map(([esp, count]) => (
@@ -140,7 +156,6 @@ function StatsObservations({ stats, obs }: { stats: StatsDashboard; obs: Observa
         ))}
       </div>
 
-      {/* Top emplacements */}
       {topEmpl.length > 0 && (
         <div className="bg-gray-800/80 border border-gray-700/50 rounded-2xl p-4 space-y-3">
           <p className="text-xs text-gray-500 uppercase tracking-wide">Top emplacements</p>
@@ -157,7 +172,6 @@ function StatsObservations({ stats, obs }: { stats: StatsDashboard; obs: Observa
         </div>
       )}
 
-      {/* Top donneurs */}
       {topDon.length > 0 && (
         <div className="bg-gray-800/80 border border-gray-700/50 rounded-2xl p-4 space-y-3">
           <p className="text-xs text-gray-500 uppercase tracking-wide">Donneurs d'ordre</p>
@@ -173,7 +187,6 @@ function StatsObservations({ stats, obs }: { stats: StatsDashboard; obs: Observa
         </div>
       )}
 
-      {/* Ce mois */}
       <div className="bg-amber-500/10 border border-amber-500/20 rounded-2xl p-4 text-center">
         <p className="text-xs text-amber-400/70 uppercase tracking-wide mb-1">Ce mois-ci</p>
         <p className="text-5xl font-bold text-amber-400">{stats.ce_mois}</p>
@@ -190,34 +203,28 @@ function StatsPiegeages({ pieges }: { pieges: PiegeageAvecCaptures[] }) {
   const total      = pieges.length
   const enPlace    = pieges.filter(p => !p.date_retrait).length
 
-  // Année courante / ce mois (sur date_pose)
   const now      = new Date()
   const yyyy     = String(now.getFullYear())
   const ym       = `${yyyy}-${String(now.getMonth() + 1).padStart(2, '0')}`
   const annee    = pieges.filter(p => p.date_pose.startsWith(yyyy)).length
   const ceMois   = pieges.filter(p => p.date_pose.startsWith(ym)).length
 
-  // Captures totales
   const totalCaptures = pieges.reduce((s, p) => s + totalCapturesPiegeage(p), 0)
   const moyenne       = total ? (totalCaptures / total) : 0
 
-  // Captures par espèce (somme des quantités)
   const byEspece: Record<string, number> = {}
   pieges.forEach(p => (p.captures ?? []).forEach(c => {
     byEspece[c.espece] = (byEspece[c.espece] ?? 0) + c.quantite
   }))
 
-  // Top types de pièges
   const byType: Record<string, number> = {}
   pieges.forEach(p => { if (p.type_piege) byType[p.type_piege] = (byType[p.type_piege] ?? 0) + 1 })
   const topType = Object.entries(byType).sort((a, b) => b[1] - a[1]).slice(0, 5)
 
-  // Top emplacements
   const byEmpl: Record<string, number> = {}
   pieges.forEach(p => { if (p.emplacement) byEmpl[p.emplacement] = (byEmpl[p.emplacement] ?? 0) + 1 })
   const topEmpl = Object.entries(byEmpl).sort((a, b) => b[1] - a[1]).slice(0, 5)
 
-  // Top appâts
   const byAppat: Record<string, number> = {}
   pieges.forEach(p => { if (p.appat) byAppat[p.appat] = (byAppat[p.appat] ?? 0) + 1 })
   const topAppat = Object.entries(byAppat).sort((a, b) => b[1] - a[1]).slice(0, 5)
@@ -235,7 +242,6 @@ function StatsPiegeages({ pieges }: { pieges: PiegeageAvecCaptures[] }) {
 
   return (
     <div className="space-y-6">
-      {/* Chiffres clés */}
       <div className="grid grid-cols-2 gap-3">
         <StatCard label="Total pièges"  value={total}         color="amber" />
         <StatCard label="Cette année"   value={annee}         color="amber" />
@@ -244,7 +250,6 @@ function StatsPiegeages({ pieges }: { pieges: PiegeageAvecCaptures[] }) {
         <StatCard label="Moy. / piège"  value={moyenne.toFixed(1)} color="purple" />
       </div>
 
-      {/* Captures par espèce */}
       {Object.keys(byEspece).length > 0 && (
         <div className="bg-gray-800/80 border border-gray-700/50 rounded-2xl p-4 space-y-3">
           <p className="text-xs text-gray-500 uppercase tracking-wide">Captures par espèce</p>
@@ -264,7 +269,6 @@ function StatsPiegeages({ pieges }: { pieges: PiegeageAvecCaptures[] }) {
         </div>
       )}
 
-      {/* Top types de pièges */}
       {topType.length > 0 && (
         <div className="bg-gray-800/80 border border-gray-700/50 rounded-2xl p-4 space-y-3">
           <p className="text-xs text-gray-500 uppercase tracking-wide">Top types de pièges</p>
@@ -281,7 +285,6 @@ function StatsPiegeages({ pieges }: { pieges: PiegeageAvecCaptures[] }) {
         </div>
       )}
 
-      {/* Top emplacements */}
       {topEmpl.length > 0 && (
         <div className="bg-gray-800/80 border border-gray-700/50 rounded-2xl p-4 space-y-3">
           <p className="text-xs text-gray-500 uppercase tracking-wide">Top emplacements</p>
@@ -298,7 +301,6 @@ function StatsPiegeages({ pieges }: { pieges: PiegeageAvecCaptures[] }) {
         </div>
       )}
 
-      {/* Top appâts */}
       {topAppat.length > 0 && (
         <div className="bg-gray-800/80 border border-gray-700/50 rounded-2xl p-4 space-y-3">
           <p className="text-xs text-gray-500 uppercase tracking-wide">Top appâts</p>
@@ -315,7 +317,6 @@ function StatsPiegeages({ pieges }: { pieges: PiegeageAvecCaptures[] }) {
         </div>
       )}
 
-      {/* Ce mois */}
       <div className="bg-amber-500/10 border border-amber-500/20 rounded-2xl p-4 text-center">
         <p className="text-xs text-amber-400/70 uppercase tracking-wide mb-1">Ce mois-ci</p>
         <p className="text-5xl font-bold text-amber-400">{ceMois}</p>

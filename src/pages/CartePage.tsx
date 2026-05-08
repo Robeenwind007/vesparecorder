@@ -17,7 +17,6 @@ L.Icon.Default.mergeOptions({
   shadowUrl:     'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-shadow.png',
 })
 
-// ── Icône ronde (nid) ────────────────────────────────────────
 function makeIcon(color: string, size = 14) {
   return L.divIcon({
     className: '',
@@ -27,7 +26,6 @@ function makeIcon(color: string, size = 14) {
   })
 }
 
-// ── Icône carrée (piège) ─────────────────────────────────────
 function makeSquareIcon(color: string, size = 14) {
   return L.divIcon({
     className: '',
@@ -37,7 +35,6 @@ function makeSquareIcon(color: string, size = 14) {
   })
 }
 
-// Couleur unique pour les pièges (gris ardoise — neutre)
 const PIEGE_COLOR        = '#475569'
 const PIEGE_RETIRE_COLOR = '#6B7280'
 
@@ -47,13 +44,20 @@ export default function CartePage() {
   const mapRef   = useRef<HTMLDivElement>(null)
   const leaflet  = useRef<L.Map | null>(null)
   const layerRef = useRef<L.LayerGroup | null>(null)
-  const { user, isAdmin } = useUser()
+  const { user, isAdmin, hasModuleTraitement, hasModulePiegeage } = useUser()
   const navigate = useNavigate()
 
   const [loading, setLoading]           = useState(true)
   const [obs, setObs]                   = useState<Observation[]>([])
   const [pieges, setPieges]             = useState<PiegeageAvecCaptures[]>([])
-  const [filtreType, setFiltreType]     = useState<FiltreType>('all')
+
+  // Filtre type adapté aux modules disponibles
+  const initialFiltreType: FiltreType =
+    hasModuleTraitement && hasModulePiegeage ? 'all'
+    : hasModuleTraitement ? 'nids'
+    : 'pieges'
+  const [filtreType, setFiltreType]     = useState<FiltreType>(initialFiltreType)
+
   const [filtreEspece, setFiltreEspece] = useState('all')
   const [filtreRetire, setFiltreRetire] = useState('all')
   const [filtreAnnee, setFiltreAnnee]   = useState<string>(String(new Date().getFullYear()))
@@ -72,21 +76,21 @@ export default function CartePage() {
     return () => { leaflet.current?.remove(); leaflet.current = null }
   }, [])
 
-  // Chargement données (obs + pièges)
+  // Chargement données — respecte les modules autorisés
   useEffect(() => {
     if (!user) return
     setLoading(true)
     const emailFiltre = isAdmin && voirTout ? undefined : user.email
 
     Promise.all([
-      getObservations({ emailFiltre }),
-      getPiegeages({ emailFiltre }),
+      hasModuleTraitement ? getObservations({ emailFiltre }) : Promise.resolve([]),
+      hasModulePiegeage   ? getPiegeages({ emailFiltre })    : Promise.resolve([]),
     ]).then(([dataObs, dataPieges]) => {
       setObs(dataObs)
-      setPieges(dataPieges)
+      setPieges(dataPieges as PiegeageAvecCaptures[])
 
       const anneesObs    = dataObs.map(o => o.date_observation.substring(0, 4))
-      const anneesPieges = dataPieges.map(p => p.date_pose.substring(0, 4))
+      const anneesPieges = (dataPieges as PiegeageAvecCaptures[]).map(p => p.date_pose.substring(0, 4))
       const anneesPresentes = [...new Set([...anneesObs, ...anneesPieges])]
         .sort((a, b) => b.localeCompare(a))
       setAnnees(anneesPresentes)
@@ -96,15 +100,15 @@ export default function CartePage() {
       else setFiltreAnnee('all')
       setLoading(false)
     })
-  }, [user, isAdmin, voirTout])
+  }, [user, isAdmin, voirTout, hasModuleTraitement, hasModulePiegeage])
 
   // Refresh markers
   useEffect(() => {
     if (!layerRef.current) return
     layerRef.current.clearLayers()
 
-    // ── Observations (nids) ──
-    if (filtreType !== 'pieges') {
+    // Observations (uniquement si module autorisé)
+    if (hasModuleTraitement && filtreType !== 'pieges') {
       obs
         .filter(o => {
           if (!o.latitude || !o.longitude) return false
@@ -137,17 +141,15 @@ export default function CartePage() {
         })
     }
 
-    // ── Piégeages (carrés) ──
-    if (filtreType !== 'nids') {
+    // Piégeages (uniquement si module autorisé)
+    if (hasModulePiegeage && filtreType !== 'nids') {
       pieges
         .filter(p => {
           if (!p.latitude || !p.longitude) return false
           if (filtreAnnee !== 'all' && !p.date_pose.startsWith(filtreAnnee)) return false
-          // Filtre statut (actif = en place, retire = retiré)
           const enPlace = !p.date_retrait
           if (filtreRetire === 'actif'  && !enPlace) return false
           if (filtreRetire === 'retire' &&  enPlace) return false
-          // Filtre espèce → on regarde si le piège a au moins une capture de cette espèce
           if (filtreEspece !== 'all') {
             const hasEspece = (p.captures ?? []).some(c => c.espece === filtreEspece)
             if (!hasEspece) return false
@@ -160,7 +162,6 @@ export default function CartePage() {
           const marker  = L.marker([p.latitude!, p.longitude!], {
             icon: makeSquareIcon(color),
           })
-          // Captures par espèce (lignes)
           const capturesHtml = (p.captures ?? []).length === 0
             ? '<p style="color:#9ca3af;font-size:12px;margin:4px 0">Aucune capture</p>'
             : '<div style="margin:6px 0 2px">'
@@ -188,7 +189,7 @@ export default function CartePage() {
           marker.addTo(layerRef.current!)
         })
     }
-  }, [obs, pieges, filtreType, filtreAnnee, filtreEspece, filtreRetire])
+  }, [obs, pieges, filtreType, filtreAnnee, filtreEspece, filtreRetire, hasModuleTraitement, hasModulePiegeage])
 
   // Compteurs
   const obsAnnee = filtreAnnee === 'all'
@@ -201,18 +202,23 @@ export default function CartePage() {
   const obsGPS    = obsAnnee.filter(o => o.latitude && o.longitude).length
   const piegesGPS = piegesAnnee.filter(p => p.latitude && p.longitude).length
 
+  // Si seul un module est dispo, le filtre type n'a aucun sens
+  const hasBothModules = hasModuleTraitement && hasModulePiegeage
+
   return (
     <div className="relative h-full">
       <div ref={mapRef} className="w-full h-full" />
 
       {/* Filtres */}
       <div className="absolute top-3 left-3 right-3 z-[1000] flex gap-2 flex-wrap">
-        <select value={filtreType} onChange={e => setFiltreType(e.target.value as FiltreType)}
-          className="bg-gray-900/95 backdrop-blur border border-gray-700 text-white text-sm rounded-xl px-3 py-2 focus:outline-none">
-          <option value="all">Nids + Pièges</option>
-          <option value="nids">Nids seulement</option>
-          <option value="pieges">Pièges seulement</option>
-        </select>
+        {hasBothModules && (
+          <select value={filtreType} onChange={e => setFiltreType(e.target.value as FiltreType)}
+            className="bg-gray-900/95 backdrop-blur border border-gray-700 text-white text-sm rounded-xl px-3 py-2 focus:outline-none">
+            <option value="all">Nids + Pièges</option>
+            <option value="nids">Nids seulement</option>
+            <option value="pieges">Pièges seulement</option>
+          </select>
+        )}
         <select value={filtreAnnee} onChange={e => setFiltreAnnee(e.target.value)}
           className="bg-gray-900/95 backdrop-blur border border-gray-700 text-white text-sm rounded-xl px-3 py-2 focus:outline-none">
           <option value="all">Toutes années</option>
@@ -245,15 +251,15 @@ export default function CartePage() {
       <div className="absolute bottom-20 left-3 z-[1000] bg-gray-900/95 backdrop-blur border border-gray-700 rounded-xl px-3 py-2 text-xs text-gray-300 space-y-0.5">
         {loading ? <Spinner size={14} /> : (
           <>
-            {filtreType !== 'pieges' && <div>● {obsGPS}/{obsAnnee.length} nids</div>}
-            {filtreType !== 'nids'   && <div>■ {piegesGPS}/{piegesAnnee.length} pièges</div>}
+            {hasModuleTraitement && filtreType !== 'pieges' && <div>● {obsGPS}/{obsAnnee.length} nids</div>}
+            {hasModulePiegeage   && filtreType !== 'nids'   && <div>■ {piegesGPS}/{piegesAnnee.length} pièges</div>}
           </>
         )}
       </div>
 
       {/* Légende */}
       <div className="absolute bottom-20 right-3 z-[1000] bg-gray-900/95 backdrop-blur border border-gray-700 rounded-xl p-3 space-y-1.5 max-w-[180px]">
-        {filtreType !== 'pieges' && (
+        {hasModuleTraitement && filtreType !== 'pieges' && (
           <>
             <p className="text-[10px] text-gray-500 uppercase tracking-wide">Nids</p>
             {Object.entries(ESPECE_COLORS).map(([esp, color]) => (
@@ -268,9 +274,11 @@ export default function CartePage() {
             </div>
           </>
         )}
-        {filtreType !== 'nids' && (
+        {hasModulePiegeage && filtreType !== 'nids' && (
           <>
-            <p className={`text-[10px] text-gray-500 uppercase tracking-wide ${filtreType === 'all' ? 'pt-1.5 border-t border-gray-700 mt-1.5' : ''}`}>Pièges</p>
+            <p className={`text-[10px] text-gray-500 uppercase tracking-wide ${
+              hasModuleTraitement && filtreType === 'all' ? 'pt-1.5 border-t border-gray-700 mt-1.5' : ''
+            }`}>Pièges</p>
             <div className="flex items-center gap-2 text-xs text-gray-300">
               <div className="w-3 h-3 border border-white/40 flex-shrink-0" style={{ backgroundColor: PIEGE_COLOR }} />
               En place
@@ -283,18 +291,45 @@ export default function CartePage() {
         )}
       </div>
 
-      {/* FAB → menu de saisie : nid ou piège */}
-      <FabSaisie
-        onNid={() => navigate('/nouveau')}
-        onPiege={() => navigate('/piegeages/nouveau')}
-      />
+      {/* FAB → menu de saisie : adapté aux modules */}
+      {(hasModuleTraitement || hasModulePiegeage) && (
+        <FabSaisie
+          showNid={hasModuleTraitement}
+          showPiege={hasModulePiegeage}
+          onNid={() => navigate('/nouveau')}
+          onPiege={() => navigate('/piegeages/nouveau')}
+        />
+      )}
     </div>
   )
 }
 
-// ── FAB avec choix nid / piège ───────────────────────────────
-function FabSaisie({ onNid, onPiege }: { onNid: () => void; onPiege: () => void }) {
+function FabSaisie({
+  showNid, showPiege, onNid, onPiege,
+}: {
+  showNid: boolean; showPiege: boolean; onNid: () => void; onPiege: () => void
+}) {
   const [open, setOpen] = useState(false)
+
+  // Si un seul module dispo, FAB direct sans menu
+  if (showNid && !showPiege) {
+    return (
+      <button onClick={onNid}
+        className="absolute bottom-24 right-3 z-[1000] w-14 h-14 bg-amber-500 rounded-full flex items-center justify-center shadow-lg shadow-amber-500/40 active:scale-95 transition-transform text-white text-2xl font-light">
+        +
+      </button>
+    )
+  }
+  if (showPiege && !showNid) {
+    return (
+      <button onClick={onPiege}
+        className="absolute bottom-24 right-3 z-[1000] w-14 h-14 bg-amber-500 rounded-full flex items-center justify-center shadow-lg shadow-amber-500/40 active:scale-95 transition-transform text-white text-2xl font-light">
+        +
+      </button>
+    )
+  }
+
+  // Les deux modules → menu de choix
   return (
     <div className="absolute bottom-24 right-3 z-[1000] flex flex-col items-end gap-2">
       {open && (

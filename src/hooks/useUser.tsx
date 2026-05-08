@@ -1,6 +1,7 @@
 // ============================================================
 // useUser — identification légère sans mot de passe
 // Supporte le mode "impersonation" pour les admins
+// + gestion des modules (traitement / piégeage) par utilisateur
 // ============================================================
 import { useState, useEffect, createContext, useContext } from 'react'
 import { supabase } from '../lib/supabase'
@@ -10,6 +11,8 @@ export interface CurrentUser {
   nom: string | null
   role: 'admin' | 'piegeur'
   actif: boolean
+  module_traitement: boolean
+  module_piegeage: boolean
 }
 
 interface UserCtx {
@@ -17,7 +20,10 @@ interface UserCtx {
   realUser: CurrentUser | null       // Toujours l'admin réel
   loading: boolean
   isAdmin: boolean
-  isImpersonating: boolean           // true si l'admin simule un autre compte
+  isImpersonating: boolean
+  // Helpers modules : un admin a tout par défaut, sinon on regarde le user courant
+  hasModuleTraitement: boolean
+  hasModulePiegeage: boolean
   setUser: (u: CurrentUser | null) => void
   impersonate: (u: CurrentUser) => void
   stopImpersonating: () => void
@@ -25,19 +31,22 @@ interface UserCtx {
 }
 
 const LS_KEY      = 'vespa_user'
-const LS_REAL_KEY = 'vespa_real_user' // Sauvegarde du vrai compte admin
+const LS_REAL_KEY = 'vespa_real_user'
 
 const UserContext = createContext<UserCtx>({
   user: null, realUser: null, loading: true,
   isAdmin: false, isImpersonating: false,
+  hasModuleTraitement: false, hasModulePiegeage: false,
   setUser: () => {}, impersonate: () => {},
   stopImpersonating: () => {}, logout: () => {}
 })
 
+const SELECT_COLS = 'email, nom, role, actif, module_traitement, module_piegeage'
+
 export function UserProvider({ children }: { children: React.ReactNode }) {
-  const [user, _setUser]       = useState<CurrentUser | null>(null)
+  const [user, _setUser]         = useState<CurrentUser | null>(null)
   const [realUser, _setRealUser] = useState<CurrentUser | null>(null)
-  const [loading, setLoading]  = useState(true)
+  const [loading, setLoading]    = useState(true)
 
   useEffect(() => {
     const stored     = localStorage.getItem(LS_KEY)
@@ -48,12 +57,19 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
         const parsed = JSON.parse(stored) as CurrentUser
         supabase
           .from('utilisateurs')
-          .select('email, nom, role, actif')
+          .select(SELECT_COLS)
           .eq('email', parsed.email)
           .single()
           .then(({ data }) => {
             if (data && data.actif) {
-              _setUser({ email: data.email, nom: data.nom, role: data.role, actif: data.actif })
+              _setUser({
+                email: data.email,
+                nom: data.nom,
+                role: data.role,
+                actif: data.actif,
+                module_traitement: data.module_traitement ?? true,
+                module_piegeage:   data.module_piegeage   ?? true,
+              })
               localStorage.setItem(LS_KEY, JSON.stringify(data))
             } else {
               localStorage.removeItem(LS_KEY)
@@ -61,7 +77,6 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
             }
             setLoading(false)
           })
-        // Restaurer le vrai compte admin si impersonation en cours
         if (storedReal) {
           _setRealUser(JSON.parse(storedReal))
         }
@@ -81,17 +96,13 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
     else { localStorage.removeItem(LS_KEY); localStorage.removeItem(LS_REAL_KEY) }
   }
 
-  // Simuler la vue d'un autre utilisateur
   const impersonate = (target: CurrentUser) => {
     const current = user!
-    // Sauvegarder le vrai compte admin
     _setRealUser(current)
     localStorage.setItem(LS_REAL_KEY, JSON.stringify(current))
-    // Basculer vers le compte cible (sans toucher LS_KEY = session réelle)
     _setUser(target)
   }
 
-  // Revenir au vrai compte admin
   const stopImpersonating = () => {
     if (realUser) {
       _setUser(realUser)
@@ -108,12 +119,26 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
   }
 
   const isImpersonating = realUser !== null
+  // Admin = vrai rôle (même en impersonation)
+  const isAdmin = (realUser ?? user)?.role === 'admin'
+
+  // Modules : pendant l'impersonation, on reflète la vue de l'utilisateur cible
+  // Hors impersonation, l'admin a tous les modules par défaut.
+  // Le piégeur respecte ses flags.
+  const hasModuleTraitement = isImpersonating
+    ? (user?.module_traitement ?? true)
+    : (isAdmin ? true : (user?.module_traitement ?? true))
+  const hasModulePiegeage = isImpersonating
+    ? (user?.module_piegeage ?? true)
+    : (isAdmin ? true : (user?.module_piegeage ?? true))
 
   return (
     <UserContext.Provider value={{
       user, realUser, loading,
-      isAdmin: (realUser ?? user)?.role === 'admin', // Admin = vrai rôle
+      isAdmin,
       isImpersonating,
+      hasModuleTraitement,
+      hasModulePiegeage,
       setUser, impersonate, stopImpersonating, logout
     }}>
       {children}
@@ -127,7 +152,7 @@ export async function resolveUser(email: string): Promise<CurrentUser | null> {
   const normalized = email.trim().toLowerCase()
   const { data, error } = await supabase
     .from('utilisateurs')
-    .select('email, nom, role, actif')
+    .select(SELECT_COLS)
     .eq('email', normalized)
     .single()
 
@@ -135,11 +160,25 @@ export async function resolveUser(email: string): Promise<CurrentUser | null> {
     const { data: created } = await supabase
       .from('utilisateurs')
       .insert({ email: normalized, role: 'piegeur', actif: true })
-      .select('email, nom, role, actif')
+      .select(SELECT_COLS)
       .single()
     if (!created) return null
-    return { email: created.email, nom: created.nom, role: created.role, actif: created.actif }
+    return {
+      email: created.email,
+      nom: created.nom,
+      role: created.role,
+      actif: created.actif,
+      module_traitement: created.module_traitement ?? true,
+      module_piegeage:   created.module_piegeage   ?? true,
+    }
   }
   if (!data.actif) return null
-  return { email: data.email, nom: data.nom, role: data.role, actif: data.actif }
+  return {
+    email: data.email,
+    nom: data.nom,
+    role: data.role,
+    actif: data.actif,
+    module_traitement: data.module_traitement ?? true,
+    module_piegeage:   data.module_piegeage   ?? true,
+  }
 }

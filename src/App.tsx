@@ -23,30 +23,27 @@ import AdminAppats from './pages/AdminAppats'
 import RapportPiegeagesPage from './pages/RapportPiegeagesPage'
 import AdminSauvegardePage from './pages/AdminSauvegardePage'
 
+// Route protégée par un module
+function ModuleRoute({ allowed, children }: { allowed: boolean; children: JSX.Element }) {
+  if (!allowed) return <Navigate to="/" replace />
+  return children
+}
+
 function AppContent() {
-  const { user, loading } = useUser()
-  // Splash uniquement au démarrage initial : il s'affiche tant qu'il n'a jamais
-  // été masqué. Une fois masqué, il ne se réaffichera plus jamais (même si
-  // `loading` repasse à true lors de re-vérifications du user).
+  const { user, loading, hasModuleTraitement, hasModulePiegeage } = useUser()
   const [splashDone, setSplashDone] = useState(false)
   const initialLoadingRef = useRef(true)
 
-  // Marqueur : on a fini le tout premier chargement
   useEffect(() => {
-    if (!loading) {
-      initialLoadingRef.current = false
-    }
+    if (!loading) initialLoadingRef.current = false
   }, [loading])
 
-  // Timer minimum d'affichage du splash (2.5s)
   useEffect(() => {
     const timer = setTimeout(() => setSplashDone(true), 2500)
     return () => clearTimeout(timer)
   }, [])
 
-  // Splash s'affiche uniquement au tout premier chargement, jamais après
   const showSplash = !splashDone || (initialLoadingRef.current && loading)
-
   if (showSplash) return <SplashPage onDone={() => setSplashDone(true)} />
 
   return (
@@ -54,15 +51,19 @@ function AppContent() {
       <Route path="/identification" element={user ? <Navigate to="/" replace /> : <IdentificationPage />} />
       <Route path="/" element={user ? <Layout /> : <Navigate to="/identification" replace />}>
         <Route index element={<CartePage />} />
-        <Route path="liste"                element={<ListePage />} />
-        <Route path="nouveau"              element={<FormulaireIntervention />} />
-        <Route path="observation/:id"      element={<ObservationDetail />} />
-        <Route path="observation/:id/edit" element={<FormulaireIntervention />} />
-        {/* ── Piégeages ── */}
-        <Route path="piegeages"            element={<ListePiegeagesPage />} />
-        <Route path="piegeages/nouveau"    element={<FormulairePiegeage />} />
-        <Route path="piegeages/:id"        element={<PiegeageDetail />} />
-        <Route path="piegeages/:id/edit"   element={<FormulairePiegeage />} />
+
+        {/* ── Module Traitement ── */}
+        <Route path="liste"                element={<ModuleRoute allowed={hasModuleTraitement}><ListePage /></ModuleRoute>} />
+        <Route path="nouveau"              element={<ModuleRoute allowed={hasModuleTraitement}><FormulaireIntervention /></ModuleRoute>} />
+        <Route path="observation/:id"      element={<ModuleRoute allowed={hasModuleTraitement}><ObservationDetail /></ModuleRoute>} />
+        <Route path="observation/:id/edit" element={<ModuleRoute allowed={hasModuleTraitement}><FormulaireIntervention /></ModuleRoute>} />
+
+        {/* ── Module Piégeage ── */}
+        <Route path="piegeages"            element={<ModuleRoute allowed={hasModulePiegeage}><ListePiegeagesPage /></ModuleRoute>} />
+        <Route path="piegeages/nouveau"    element={<ModuleRoute allowed={hasModulePiegeage}><FormulairePiegeage /></ModuleRoute>} />
+        <Route path="piegeages/:id"        element={<ModuleRoute allowed={hasModulePiegeage}><PiegeageDetail /></ModuleRoute>} />
+        <Route path="piegeages/:id/edit"   element={<ModuleRoute allowed={hasModulePiegeage}><FormulairePiegeage /></ModuleRoute>} />
+
         {/* ── Reste ── */}
         <Route path="stats"                element={<StatsPage />} />
         <Route path="profil"               element={<ProfilPage />} />
