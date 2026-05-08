@@ -1,4 +1,7 @@
-export type Espece = 'Asiatique' | 'Européen' | 'Guêpes' | 'Vespa Soror' | 'Vespa Orientalis'
+// ── Espèces : maintenant dynamiques (gérées en BDD)
+// On garde Espece = string pour ne pas casser le code existant
+export type Espece = string
+
 export type TypeNid = 'Primaire' | 'Secondaire' | 'Non défini'
 export type OrigineLocalisation = 'GPS' | 'Adresse'
 export type Emplacement =
@@ -20,6 +23,17 @@ export interface DonneurOrdre {
   id: string
   nom: string
   actif: boolean
+  created_by_email: string | null
+}
+
+// Espèce paramétrable (table especes)
+export interface EspeceParam {
+  id: string
+  nom: string
+  couleur: string         // ex: '#D97706'
+  actif: boolean
+  ordre: number
+  created_at: string
   created_by_email: string | null
 }
 
@@ -57,18 +71,38 @@ export interface StatsDashboard {
   cette_annee: number
 }
 
-export const ESPECES: Espece[] = [
-  'Asiatique', 'Européen', 'Guêpes', 'Vespa Soror', 'Vespa Orientalis'
+// Liste de fallback (utilisée uniquement si le contexte n'est pas dispo, pour compat)
+export const ESPECES_DEFAUT: Espece[] = [
+  'Asiatique', 'Europeen', 'Guepes', 'Vespa Soror', 'Vespa Orientalis'
 ]
+// Alias pour compat ancien code (sera progressivement remplacé par useEspeces)
+export const ESPECES: Espece[] = ESPECES_DEFAUT
+
 export const TYPES_NID: TypeNid[] = ['Primaire', 'Secondaire', 'Non défini']
 export const EMPLACEMENTS: Emplacement[] = [
   'Arbre', 'Haie', 'Appenti', 'Toiture',
   'Garage', 'Volet/fenêtre', 'Enterré', 'Carton/Pneu', 'Autres'
 ]
-export const ESPECE_COLORS: Record<Espece, string> = {
+
+// Fallback couleurs (utilisé si l'espèce n'est pas dans la liste dynamique)
+export const ESPECE_COLORS_DEFAUT: Record<string, string> = {
   'Asiatique':        '#D97706',
+  'Europeen':         '#2563EB',
   'Européen':         '#2563EB',
+  'Guepes':           '#7C3AED',
   'Guêpes':           '#7C3AED',
   'Vespa Soror':      '#DC2626',
   'Vespa Orientalis': '#059669',
+}
+
+// Alias pour compat ancien code
+export const ESPECE_COLORS: Record<string, string> = ESPECE_COLORS_DEFAUT
+
+// Helper pour récupérer la couleur d'une espèce avec fallback
+export const getEspeceColor = (
+  nom: string,
+  dynamiques?: Record<string, string>
+): string => {
+  if (dynamiques && dynamiques[nom]) return dynamiques[nom]
+  return ESPECE_COLORS_DEFAUT[nom] ?? '#D97706'
 }

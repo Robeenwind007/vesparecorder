@@ -8,7 +8,8 @@ import {
 } from '../lib/piegeage'
 import type { TypePiege, Appat, CaptureDraft } from '../types/piegeage'
 import type { Espece, Emplacement } from '../types'
-import { ESPECES, EMPLACEMENTS } from '../types'
+import { EMPLACEMENTS } from '../types'
+import { useEspeces } from '../hooks/useEspeces'
 import { Btn, ToggleBtn, Input, Stepper, Spinner } from '../components/UI'
 
 interface FormData {
@@ -29,6 +30,7 @@ export default function FormulairePiegeage() {
   const { id }   = useParams()
   const isEdit   = Boolean(id)
   const { user, isAdmin } = useUser()
+  const { noms: especesNoms } = useEspeces()
   const navigate = useNavigate()
 
   const [types, setTypes]     = useState<TypePiege[]>([])
@@ -87,10 +89,10 @@ export default function FormulairePiegeage() {
   // Espèces déjà utilisées dans les captures actuelles
   const especesUtilisees = new Set(captures.map(c => c.espece))
   // Espèces encore disponibles
-  const especesDisponibles = ESPECES.filter(e => !especesUtilisees.has(e))
+  const especesDisponibles = especesNoms.filter(e => !especesUtilisees.has(e))
 
   const addCaptureLine = () => {
-    if (especesDisponibles.length === 0) return  // toutes utilisées
+    if (especesDisponibles.length === 0) return
     setCaptures(c => [...c, { espece: especesDisponibles[0], quantite: 1 }])
   }
 
@@ -102,7 +104,7 @@ export default function FormulairePiegeage() {
 
   // Pour un sélecteur donné : sa propre espèce + celles non utilisées
   const especesPourLigne = (currentEspece: Espece): Espece[] =>
-    ESPECES.filter(e => e === currentEspece || !especesUtilisees.has(e))
+    especesNoms.filter(e => e === currentEspece || !especesUtilisees.has(e))
 
   // ── GPS ──────────────────────────────────────────────────────
   const captureGPS = (): Promise<{ lat: number, lng: number } | null> => {

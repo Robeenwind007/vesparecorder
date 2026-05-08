@@ -7,7 +7,7 @@ import { getPiegeages, totalCapturesPiegeage } from '../lib/piegeage'
 import { useUser } from '../hooks/useUser'
 import type { Observation, Espece } from '../types'
 import type { PiegeageAvecCaptures } from '../types/piegeage'
-import { ESPECE_COLORS, ESPECES } from '../types'
+import { useEspeces } from '../hooks/useEspeces'
 import { Spinner } from '../components/UI'
 
 delete (L.Icon.Default.prototype as unknown as Record<string, unknown>)._getIconUrl
@@ -45,6 +45,7 @@ export default function CartePage() {
   const leaflet  = useRef<L.Map | null>(null)
   const layerRef = useRef<L.LayerGroup | null>(null)
   const { user, isAdmin, hasModuleTraitement, hasModulePiegeage } = useUser()
+  const { especes, noms: especesNoms, getColor: especesGetColor } = useEspeces()
   const navigate = useNavigate()
 
   const [loading, setLoading]           = useState(true)
@@ -119,7 +120,7 @@ export default function CartePage() {
           return true
         })
         .forEach(o => {
-          const color  = ESPECE_COLORS[o.espece as Espece] ?? '#D97706'
+          const color  = especesGetColor(o.espece as Espece)
           const marker = L.marker([o.latitude!, o.longitude!], {
             icon: makeIcon(o.retire ? '#6B7280' : color),
           })
@@ -227,7 +228,7 @@ export default function CartePage() {
         <select value={filtreEspece} onChange={e => setFiltreEspece(e.target.value)}
           className="bg-gray-900/95 backdrop-blur border border-gray-700 text-white text-sm rounded-xl px-3 py-2 focus:outline-none">
           <option value="all">Toutes espèces</option>
-          {ESPECES.map(e => <option key={e} value={e}>{e}</option>)}
+          {especesNoms.map(e => <option key={e} value={e}>{e}</option>)}
         </select>
         <select value={filtreRetire} onChange={e => setFiltreRetire(e.target.value)}
           className="bg-gray-900/95 backdrop-blur border border-gray-700 text-white text-sm rounded-xl px-3 py-2 focus:outline-none">
@@ -262,10 +263,10 @@ export default function CartePage() {
         {hasModuleTraitement && filtreType !== 'pieges' && (
           <>
             <p className="text-[10px] text-gray-500 uppercase tracking-wide">Nids</p>
-            {Object.entries(ESPECE_COLORS).map(([esp, color]) => (
-              <div key={esp} className="flex items-center gap-2 text-xs text-gray-300">
-                <div className="w-3 h-3 rounded-full border border-white/40 flex-shrink-0" style={{ backgroundColor: color }} />
-                {esp}
+            {especes.map(e => (
+              <div key={e.id} className="flex items-center gap-2 text-xs text-gray-300">
+                <div className="w-3 h-3 rounded-full border border-white/40 flex-shrink-0" style={{ backgroundColor: e.couleur }} />
+                {e.nom}
               </div>
             ))}
             <div className="flex items-center gap-2 text-xs text-gray-500 pt-1 border-t border-gray-700">

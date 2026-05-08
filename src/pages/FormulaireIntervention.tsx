@@ -6,7 +6,8 @@ import {
   getDonneurs, addDonneur, uploadPhoto, geocodeAdresse
 } from '../lib/supabase'
 import type { Espece, TypeNid, Emplacement, DonneurOrdre } from '../types'
-import { ESPECES, TYPES_NID, EMPLACEMENTS } from '../types'
+import { TYPES_NID, EMPLACEMENTS } from '../types'
+import { useEspeces } from '../hooks/useEspeces'
 import { Btn, ToggleBtn, Input, Stepper, Spinner } from '../components/UI'
 
 interface FormData {
@@ -31,6 +32,7 @@ export default function FormulaireIntervention() {
   const { id }   = useParams()
   const isEdit   = Boolean(id)
   const { user, isAdmin } = useUser()
+  const { noms: especesNoms, getColor: especesGetColor } = useEspeces()
   const navigate = useNavigate()
 
   const [donneurs, setDonneurs]         = useState<DonneurOrdre[]>([])
@@ -280,9 +282,9 @@ export default function FormulaireIntervention() {
         <div className="space-y-2">
           <label className="text-sm font-medium text-gray-400">Espèce <span className="text-amber-500">*</span></label>
           <div className="space-y-2">
-            {ESPECES.map(e => (
+            {especesNoms.map(e => (
               <ToggleBtn key={e} label={e} selected={form.espece === e} onClick={() => set('espece', e)}
-                color={form.espece === e ? '#D97706' : undefined} />
+                color={form.espece === e ? especesGetColor(e) : undefined} />
             ))}
           </div>
         </div>

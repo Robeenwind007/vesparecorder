@@ -4,11 +4,12 @@ import { getObservations, getDonneurs } from '../lib/supabase'
 import type { DonneurOrdre } from '../types'
 import { useUser } from '../hooks/useUser'
 import type { Observation } from '../types'
-import { ESPECES } from '../types'
+import { useEspeces } from '../hooks/useEspeces'
 import { EspeceBadge, RetireBadge, Card, Empty, Spinner } from '../components/UI'
 
 export default function ListePage() {
   const { user, isAdmin } = useUser()
+  const { noms: especesNoms } = useEspeces()
   const navigate = useNavigate()
 
   const [obs, setObs]           = useState<Observation[]>([])
@@ -411,7 +412,7 @@ export default function ListePage() {
           <select value={filtreEsp} onChange={e => setFiltreEsp(e.target.value)}
             className="flex-shrink-0 bg-gray-800 border border-gray-700 text-sm text-white rounded-xl px-3 py-2 focus:outline-none focus:border-amber-500">
             <option value="">Toutes espèces</option>
-            {ESPECES.map(e => <option key={e} value={e}>{e}</option>)}
+            {especesNoms.map(e => <option key={e} value={e}>{e}</option>)}
           </select>
           <select value={filtreRet} onChange={e => setFiltreRet(e.target.value)}
             className="flex-shrink-0 bg-gray-800 border border-gray-700 text-sm text-white rounded-xl px-3 py-2 focus:outline-none focus:border-amber-500">

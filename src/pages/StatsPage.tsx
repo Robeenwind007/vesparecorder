@@ -5,7 +5,7 @@ import { useUser } from '../hooks/useUser'
 import type { StatsDashboard, Observation } from '../types'
 import type { PiegeageAvecCaptures } from '../types/piegeage'
 import { StatCard, Spinner, Empty } from '../components/UI'
-import { ESPECE_COLORS } from '../types'
+import { useEspeces } from '../hooks/useEspeces'
 
 type Tab = 'observations' | 'piegeages'
 
@@ -104,6 +104,7 @@ export default function StatsPage() {
 // SECTION OBSERVATIONS
 // ────────────────────────────────────────────────────────────────
 function StatsObservations({ stats, obs }: { stats: StatsDashboard; obs: Observation[] }) {
+  const { getColor: especesGetColor } = useEspeces()
   const byEspece = obs.reduce<Record<string, number>>((a, o) => { a[o.espece] = (a[o.espece] ?? 0) + 1; return a }, {})
   const byEmpl   = obs.reduce<Record<string, number>>((a, o) => { if (o.emplacement) a[o.emplacement] = (a[o.emplacement] ?? 0) + 1; return a }, {})
   const byDon    = obs.reduce<Record<string, number>>((a, o) => { if (o.donneur_ordre) a[o.donneur_ordre] = (a[o.donneur_ordre] ?? 0) + 1; return a }, {})
@@ -150,7 +151,7 @@ function StatsObservations({ stats, obs }: { stats: StatsDashboard; obs: Observa
             <div className="bg-gray-700 rounded-full h-2 overflow-hidden">
               <div className="h-full rounded-full"
                 style={{ width: `${Math.round((count / stats.total_observations) * 100)}%`,
-                         backgroundColor: ESPECE_COLORS[esp as keyof typeof ESPECE_COLORS] ?? '#D97706' }} />
+                         backgroundColor: especesGetColor(esp) }} />
             </div>
           </div>
         ))}
@@ -200,6 +201,7 @@ function StatsObservations({ stats, obs }: { stats: StatsDashboard; obs: Observa
 // SECTION PIÉGEAGES
 // ────────────────────────────────────────────────────────────────
 function StatsPiegeages({ pieges }: { pieges: PiegeageAvecCaptures[] }) {
+  const { getColor: especesGetColor } = useEspeces()
   const total      = pieges.length
   const enPlace    = pieges.filter(p => !p.date_retrait).length
 
@@ -262,7 +264,7 @@ function StatsPiegeages({ pieges }: { pieges: PiegeageAvecCaptures[] }) {
               <div className="bg-gray-700 rounded-full h-2 overflow-hidden">
                 <div className="h-full rounded-full"
                   style={{ width: `${Math.round((qte / maxByEspece) * 100)}%`,
-                           backgroundColor: ESPECE_COLORS[esp as keyof typeof ESPECE_COLORS] ?? '#D97706' }} />
+                           backgroundColor: especesGetColor(esp) }} />
               </div>
             </div>
           ))}
