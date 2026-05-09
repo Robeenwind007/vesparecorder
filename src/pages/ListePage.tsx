@@ -31,7 +31,7 @@ export default function ListePage() {
   const panelRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
-    if (user) getDonneurs(user.email).then(setDonneurs)
+    if (user) getDonneurs(user.email, isAdmin).then(setDonneurs)
   }, [user])
 
   useEffect(() => {

@@ -61,7 +61,7 @@ export default function FormulaireIntervention() {
     setForm(f => ({ ...f, [k]: v }))
 
   const loadDonneurs = () =>
-    getDonneurs(user?.email).then(setDonneurs)
+    getDonneurs(user?.email, isAdmin).then(setDonneurs)
 
   useEffect(() => {
     loadDonneurs()
@@ -245,13 +245,10 @@ export default function FormulaireIntervention() {
             className="w-full bg-gray-800 border border-gray-700 rounded-xl px-4 py-3 text-white text-base focus:outline-none focus:border-amber-500 appearance-none">
             <option value="">— Choisir —</option>
             {donneurs.map(d => (
-              <option key={d.id} value={d.nom}>
-                {d.nom}{d.created_by_email ? ' ★' : ''}
-              </option>
+              <option key={d.id} value={d.nom}>{d.nom}</option>
             ))}
           </select>
           {errors.donneur_ordre && <p className="text-xs text-red-400">{errors.donneur_ordre}</p>}
-          <p className="text-xs text-gray-600">★ = vos donneurs personnels</p>
         </div>
 
         {/* Localisation */}
