@@ -132,3 +132,15 @@ export interface SupportMessage {
 export interface SupportTicketWithMessages extends SupportTicket {
   messages: SupportMessage[]
 }
+
+// ── FAQ ──────────────────────────────────────────────────────
+export interface FaqItem {
+  id: string
+  question: string
+  reponse: string
+  categorie: string
+  ordre: number
+  actif: boolean
+  created_at: string
+  updated_at: string
+}

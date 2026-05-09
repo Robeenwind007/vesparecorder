@@ -19,6 +19,7 @@ const AdminDonneurs         = lazy(() => import('./pages/AdminDonneurs'))
 const AdminUtilisateurs     = lazy(() => import('./pages/AdminUtilisateurs'))
 const RapportPage           = lazy(() => import('./pages/RapportPage'))
 const AdminEspeces          = lazy(() => import('./pages/AdminEspeces'))
+const AdminFaq              = lazy(() => import('./pages/AdminFaq'))
 // Piégeages
 const ListePiegeagesPage    = lazy(() => import('./pages/ListePiegeagesPage'))
 const FormulairePiegeage    = lazy(() => import('./pages/FormulairePiegeage'))
@@ -84,6 +85,7 @@ function AppContent() {
           <Route path="admin/types-pieges"   element={<AdminTypesPieges />} />
           <Route path="admin/appats"         element={<AdminAppats />} />
           <Route path="admin/especes"        element={<AdminEspeces />} />
+          <Route path="admin/faq"            element={<AdminFaq />} />
           <Route path="admin/utilisateurs"   element={<AdminUtilisateurs />} />
           <Route path="admin/rapport"        element={<RapportPage />} />
           <Route path="admin/rapport-pieges" element={<RapportPiegeagesPage />} />
