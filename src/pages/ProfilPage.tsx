@@ -3,11 +3,13 @@ import { useUser } from '../hooks/useUser'
 import { useTheme } from '../hooks/useTheme'
 import type { Theme } from '../hooks/useTheme'
 import { useUnreadSupport } from '../hooks/useUnreadSupport'
+import { usePendingUsers } from '../hooks/usePendingUsers'
 
 export default function ProfilPage() {
   const { user, isAdmin, logout } = useUser()
   const { theme, resolvedTheme, setTheme }  = useTheme()
   const { count: unreadSupport } = useUnreadSupport()
+  const { count: pendingUsers }  = usePendingUsers()
   const navigate = useNavigate()
 
   const handleLogout = () => {
@@ -96,7 +98,14 @@ export default function ProfilPage() {
           </div>
           <button onClick={() => navigate('/admin/utilisateurs')}
             className="w-full flex items-center justify-between px-4 py-3.5 text-sm hover:bg-gray-700/50 transition-colors">
-            <span>👥 Gérer les utilisateurs</span>
+            <span className="flex items-center gap-2">
+              <span>👥 Gérer les utilisateurs</span>
+              {pendingUsers > 0 && (
+                <span className="inline-flex items-center justify-center min-w-[20px] h-5 px-1 bg-amber-500 text-black rounded-full text-xs font-bold">
+                  {pendingUsers}
+                </span>
+              )}
+            </span>
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="m9 18 6-6-6-6"/></svg>
           </button>
           <button onClick={() => navigate('/admin/rapport')}

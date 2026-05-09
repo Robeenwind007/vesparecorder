@@ -157,28 +157,89 @@ export async function resolveUser(email: string): Promise<CurrentUser | null> {
     .single()
 
   if (error || !data) {
+    // Création d'un nouveau compte EN ATTENTE
+    // (modules désactivés par défaut → trigger SQL met actif=false)
     const { data: created } = await supabase
       .from('utilisateurs')
-      .insert({ email: normalized, role: 'piegeur', actif: true })
+      .insert({
+        email: normalized,
+        role: 'piegeur',
+        // Les défauts SQL gèrent le reste : actif=false, modules=false
+      })
       .select(SELECT_COLS)
       .single()
     if (!created) return null
-    return {
-      email: created.email,
-      nom: created.nom,
-      role: created.role,
-      actif: created.actif,
-      module_traitement: created.module_traitement ?? true,
-      module_piegeage:   created.module_piegeage   ?? true,
-    }
+
+    // Notification à l'admin (best-effort, ne bloque pas la création)
+    notifyNewAccount(normalized).catch(e => console.warn('Notif nouvel utilisateur échouée:', e))
+
+    // Compte créé mais inactif → renvoyer null pour basculer sur écran d'attente
+    return null
   }
-  if (!data.actif) return null
+
+  if (!data.actif) {
+    // Compte connu mais en attente de validation
+    return null
+  }
+
   return {
     email: data.email,
     nom: data.nom,
     role: data.role,
     actif: data.actif,
-    module_traitement: data.module_traitement ?? true,
-    module_piegeage:   data.module_piegeage   ?? true,
+    module_traitement: data.module_traitement ?? false,
+    module_piegeage:   data.module_piegeage   ?? false,
   }
+}
+
+// Vérifie le statut d'un email sans le créer (pour la page d'attente)
+export async function checkUserStatus(email: string): Promise<{
+  exists: boolean
+  actif: boolean
+  user: CurrentUser | null
+}> {
+  const normalized = email.trim().toLowerCase()
+  const { data } = await supabase
+    .from('utilisateurs')
+    .select(SELECT_COLS)
+    .eq('email', normalized)
+    .single()
+
+  if (!data) return { exists: false, actif: false, user: null }
+
+  const isActif = !!data.actif
+  return {
+    exists: true,
+    actif: isActif,
+    user: isActif ? {
+      email: data.email,
+      nom: data.nom,
+      role: data.role,
+      actif: data.actif,
+      module_traitement: data.module_traitement ?? false,
+      module_piegeage:   data.module_piegeage   ?? false,
+    } : null,
+  }
+}
+
+// Notification email à l'admin via Edge Function
+async function notifyNewAccount(emailUser: string): Promise<void> {
+  const url      = import.meta.env.VITE_SUPABASE_URL as string
+  const anonKey  = import.meta.env.VITE_SUPABASE_ANON_KEY as string
+  await fetch(`${url}/functions/v1/send-support-email`, {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${anonKey}`,
+      'apikey': anonKey,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      ticket_id: 'new-account',
+      sujet: `Nouvelle demande d'accès : ${emailUser}`,
+      contenu: `L'utilisateur ${emailUser} demande l'accès à VespaRecorder. Connectez-vous à l'application et activez son compte depuis « Profil → Gérer les utilisateurs ».`,
+      auteur_email: emailUser,
+      auteur_role: 'user',
+      destinataire_email: '',
+    }),
+  })
 }
