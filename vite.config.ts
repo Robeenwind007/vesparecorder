@@ -3,12 +3,25 @@ import react from '@vitejs/plugin-react'
 import { VitePWA } from 'vite-plugin-pwa'
 import { copyFileSync, readFileSync } from 'fs'
 
-// Lit la version depuis package.json pour l'injecter dans le code
 const pkg = JSON.parse(readFileSync('./package.json', 'utf-8'))
 
 export default defineConfig({
   define: {
     __APP_VERSION__: JSON.stringify(pkg.version),
+  },
+  build: {
+    chunkSizeWarningLimit: 600,
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          'react-vendor':    ['react', 'react-dom', 'react-router-dom'],
+          'leaflet-vendor':  ['leaflet'],
+          'supabase-vendor': ['@supabase/supabase-js'],
+          // jspdf, jspdf-autotable et xlsx sont importés en dynamic import
+          // dans les pages d'export, donc ils seront automatiquement isolés
+        },
+      },
+    },
   },
   plugins: [
     {
