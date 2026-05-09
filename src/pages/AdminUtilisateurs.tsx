@@ -3,54 +3,43 @@ import { useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { useUser } from '../hooks/useUser'
 import type { Utilisateur } from '../types'
-import { Card, Spinner } from '../components/UI'
+import { Btn, Card, Spinner } from '../components/UI'
 
 export default function AdminUtilisateurs() {
-  const { isAdmin, impersonate } = useUser()
+  const { isAdmin, impersonate, user: currentUser } = useUser()
   const navigate                 = useNavigate()
   const [users, setUsers]        = useState<Utilisateur[]>([])
   const [loading, setLoading]    = useState(true)
+  const [toDelete, setToDelete]  = useState<Utilisateur | null>(null)
 
   useEffect(() => {
     if (!isAdmin) { navigate('/'); return }
+    load()
+  }, [isAdmin, navigate])
+
+  const load = () =>
     supabase.from('utilisateurs').select('*').order('created_at')
       .then(({ data }) => { setUsers(data ?? []); setLoading(false) })
-  }, [isAdmin, navigate])
 
   const toggleRole = async (id: string, role: string) => {
     const newRole = role === 'admin' ? 'piegeur' : 'admin'
     const { data } = await supabase.from('utilisateurs')
-      .update({ role: newRole })
-      .eq('id', id)
-      .select()
-      .single()
-    if (data) {
-      setUsers(u => u.map(x => x.id === id ? (data as typeof x) : x))
-    }
+      .update({ role: newRole }).eq('id', id).select().single()
+    if (data) setUsers(u => u.map(x => x.id === id ? (data as typeof x) : x))
   }
 
   const toggleActif = async (id: string, actif: boolean) => {
     const { data } = await supabase.from('utilisateurs')
-      .update({ actif: !actif })
-      .eq('id', id)
-      .select()
-      .single()
-    if (data) {
-      setUsers(u => u.map(x => x.id === id ? (data as typeof x) : x))
-    }
+      .update({ actif: !actif }).eq('id', id).select().single()
+    if (data) setUsers(u => u.map(x => x.id === id ? (data as typeof x) : x))
   }
 
   const toggleModule = async (id: string, module: 'module_traitement' | 'module_piegeage', current: boolean) => {
-    // Update + récupération du user complet (actif est mis à jour par le trigger SQL)
     const { data } = await supabase.from('utilisateurs')
-      .update({ [module]: !current })
-      .eq('id', id)
-      .select()
-      .single()
+      .update({ [module]: !current }).eq('id', id).select().single()
     if (data) {
       setUsers(u => u.map(x => x.id === id ? (data as typeof x) : x))
     } else {
-      // Fallback si pas de data (cas rare)
       setUsers(u => u.map(x => x.id === id ? { ...x, [module]: !current } : x))
     }
   }
@@ -87,8 +76,6 @@ export default function AdminUtilisateurs() {
       </div>
 
       <div className="flex-1 overflow-y-auto px-4 py-4 space-y-3 pb-24">
-
-        {/* Bannière comptes en attente */}
         {pending.length > 0 && (
           <div className="bg-amber-500/10 border border-amber-500/40 rounded-2xl p-4">
             <p className="text-sm text-amber-300 font-medium">
@@ -102,6 +89,7 @@ export default function AdminUtilisateurs() {
 
         {ordered.map(u => {
           const isPending = u.role === 'piegeur' && !u.actif
+          const isMe = u.email === currentUser?.email
           return (
           <Card key={u.id}>
             <div className="space-y-3">
@@ -123,20 +111,17 @@ export default function AdminUtilisateurs() {
                 )}
               </div>
 
-              {/* Modules — uniquement pour les piégeurs (admin a tout par défaut) */}
               {u.role !== 'admin' && (
                 <div className="bg-gray-900/40 border border-gray-700/50 rounded-xl p-3 space-y-2">
                   <p className="text-[10px] uppercase tracking-wide text-gray-500 font-medium">Modules autorisés</p>
                   <div className="grid grid-cols-2 gap-2">
                     <ModuleToggle
-                      label="Traitement"
-                      icon="🐝"
+                      label="Traitement" icon="🐝"
                       enabled={u.module_traitement}
                       onChange={() => toggleModule(u.id, 'module_traitement', u.module_traitement)}
                     />
                     <ModuleToggle
-                      label="Piégeage"
-                      icon="🪤"
+                      label="Piégeage" icon="🪤"
                       enabled={u.module_piegeage}
                       onChange={() => toggleModule(u.id, 'module_piegeage', u.module_piegeage)}
                     />
@@ -173,12 +158,27 @@ export default function AdminUtilisateurs() {
                     {u.actif ? 'Désactiver' : 'Réactiver'}
                   </button>
                 )}
+                {!isMe && (
+                  <button onClick={() => setToDelete(u)}
+                    className="flex-1 text-xs py-2 rounded-lg bg-red-900/40 text-red-400 hover:bg-red-900/60 transition-colors font-medium">
+                    🗑 Supprimer
+                  </button>
+                )}
               </div>
             </div>
           </Card>
           )
         })}
       </div>
+
+      {/* Modale de suppression */}
+      {toDelete && (
+        <DeleteModal
+          user={toDelete}
+          onClose={() => setToDelete(null)}
+          onDeleted={() => { setToDelete(null); load() }}
+        />
+      )}
     </div>
   )
 }
@@ -203,7 +203,6 @@ function ModuleToggle({
         <span className="text-base">{icon}</span>
         <span className={`text-sm font-medium truncate ${enabled ? 'text-amber-300' : 'text-gray-500'}`}>{label}</span>
       </span>
-      {/* Switch */}
       <span className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors flex-shrink-0 ${
         enabled ? 'bg-amber-500' : 'bg-gray-600'
       }`}>
@@ -213,4 +212,171 @@ function ModuleToggle({
       </span>
     </button>
   )
+}
+
+// ──────────────────────────────────────────────────────────────
+// Modale de suppression d'utilisateur
+// ──────────────────────────────────────────────────────────────
+interface Counts {
+  observations: number
+  piegeages: number
+  donneurs: number
+  tickets: number
+  especes: number
+}
+
+function DeleteModal({
+  user, onClose, onDeleted,
+}: {
+  user: Utilisateur
+  onClose: () => void
+  onDeleted: () => void
+}) {
+  const [counts, setCounts]   = useState<Counts | null>(null)
+  const [loading, setLoading] = useState(true)
+  const [mode, setMode]       = useState<'keep' | 'all'>('keep')
+  const [deleting, setDeleting] = useState(false)
+
+  useEffect(() => {
+    countUserData(user.email).then(c => { setCounts(c); setLoading(false) })
+  }, [user.email])
+
+  const handleDelete = async () => {
+    setDeleting(true)
+    try {
+      if (mode === 'all') {
+        // Hard delete des données associées (sauf observations/piégeages
+        // qui appartiennent au métier — on garde l'historique en mode "all"
+        // aussi si tu changes d'avis, dis-le)
+        await supabase.from('observations').delete().eq('saisi_par_email', user.email)
+        await supabase.from('piegeages').delete().eq('saisi_par_email', user.email)
+        await supabase.from('donneurs_ordre').delete().eq('created_by_email', user.email)
+        await supabase.from('especes').delete().eq('created_by_email', user.email)
+        // Tickets : cascade delete sur support_messages via FK
+        await supabase.from('support_tickets').delete().eq('user_email', user.email)
+      }
+      // Toujours supprimer le user en dernier
+      const { error } = await supabase.from('utilisateurs').delete().eq('id', user.id)
+      if (error) throw error
+      onDeleted()
+    } catch (e) {
+      alert('Erreur lors de la suppression : ' + (e as Error).message)
+      console.error(e)
+      setDeleting(false)
+    }
+  }
+
+  return (
+    <div className="fixed inset-0 z-[2000] bg-black/80 flex items-end sm:items-center justify-center p-0 sm:p-4">
+      <div className="bg-gray-900 border border-gray-700 rounded-t-3xl sm:rounded-3xl w-full sm:max-w-md max-h-[90vh] overflow-y-auto safe-bottom">
+
+        {/* Header */}
+        <div className="px-5 py-4 border-b border-gray-800 flex items-center gap-3">
+          <span className="text-2xl">⚠️</span>
+          <div className="flex-1 min-w-0">
+            <p className="text-sm font-semibold text-white">Supprimer l'utilisateur</p>
+            <p className="text-xs text-gray-500 truncate">{user.email}</p>
+          </div>
+          <button onClick={onClose} className="text-gray-500 hover:text-white p-1">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M18 6 6 18M6 6l12 12"/></svg>
+          </button>
+        </div>
+
+        <div className="p-5 space-y-4">
+
+          <p className="text-sm text-gray-300">
+            Cette action est <strong className="text-red-400">irréversible</strong>.
+            Que faire des données associées à ce compte ?
+          </p>
+
+          {/* Compteurs */}
+          {loading ? (
+            <div className="flex justify-center py-4"><Spinner size={20} /></div>
+          ) : counts && (
+            <div className="bg-gray-800/80 border border-gray-700/50 rounded-2xl p-4 space-y-1.5 text-sm">
+              <p className="text-xs text-gray-500 uppercase tracking-wide font-medium mb-2">Données du compte</p>
+              <Row label="Observations"        value={counts.observations} />
+              <Row label="Piégeages"           value={counts.piegeages} />
+              <Row label="Donneurs perso"      value={counts.donneurs} />
+              <Row label="Tickets de support"  value={counts.tickets} />
+              <Row label="Espèces perso"       value={counts.especes} />
+            </div>
+          )}
+
+          {/* Choix */}
+          <div className="space-y-2">
+            <label className={`flex items-start gap-3 p-3 rounded-xl border cursor-pointer transition-colors ${
+              mode === 'keep' ? 'bg-amber-500/10 border-amber-500/40' : 'bg-gray-800 border-gray-700'
+            }`}>
+              <input type="radio" name="mode" value="keep"
+                checked={mode === 'keep'} onChange={() => setMode('keep')}
+                className="mt-0.5 accent-amber-500" />
+              <div>
+                <p className="text-sm text-white font-medium">Garder les données</p>
+                <p className="text-xs text-gray-400 mt-0.5">
+                  Le compte est supprimé. Ses observations, piégeages, donneurs et tickets restent en base
+                  (l'email apparaîtra encore dans les listes mais ne pourra plus se reconnecter sans demander une nouvelle validation).
+                </p>
+              </div>
+            </label>
+
+            <label className={`flex items-start gap-3 p-3 rounded-xl border cursor-pointer transition-colors ${
+              mode === 'all' ? 'bg-red-900/20 border-red-700/60' : 'bg-gray-800 border-gray-700'
+            }`}>
+              <input type="radio" name="mode" value="all"
+                checked={mode === 'all'} onChange={() => setMode('all')}
+                className="mt-0.5 accent-red-500" />
+              <div>
+                <p className="text-sm text-white font-medium">Tout supprimer</p>
+                <p className="text-xs text-gray-400 mt-0.5">
+                  Le compte ET toutes ses données (observations, piégeages, donneurs, tickets, espèces).
+                  Aucun moyen de récupérer ensuite, sauf via une sauvegarde JSON.
+                </p>
+              </div>
+            </label>
+          </div>
+
+          {/* Actions */}
+          <div className="flex gap-2 pt-2">
+            <Btn variant="ghost" onClick={onClose} className="flex-1" disabled={deleting}>
+              Annuler
+            </Btn>
+            <Btn variant="danger" onClick={handleDelete} className="flex-1" loading={deleting}>
+              {mode === 'all' ? 'Tout supprimer' : 'Supprimer le compte'}
+            </Btn>
+          </div>
+
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function Row({ label, value }: { label: string; value: number }) {
+  return (
+    <div className="flex justify-between text-gray-300">
+      <span>{label}</span>
+      <span className={value > 0 ? 'text-amber-400 font-medium tabular-nums' : 'text-gray-600 tabular-nums'}>
+        {value}
+      </span>
+    </div>
+  )
+}
+
+// Compte les données associées à un email
+async function countUserData(email: string): Promise<Counts> {
+  const [obs, pie, don, tic, esp] = await Promise.all([
+    supabase.from('observations').select('*', { count: 'exact', head: true }).eq('saisi_par_email', email),
+    supabase.from('piegeages').select('*', { count: 'exact', head: true }).eq('saisi_par_email', email),
+    supabase.from('donneurs_ordre').select('*', { count: 'exact', head: true }).eq('created_by_email', email),
+    supabase.from('support_tickets').select('*', { count: 'exact', head: true }).eq('user_email', email),
+    supabase.from('especes').select('*', { count: 'exact', head: true }).eq('created_by_email', email),
+  ])
+  return {
+    observations: obs.count ?? 0,
+    piegeages:    pie.count ?? 0,
+    donneurs:     don.count ?? 0,
+    tickets:      tic.count ?? 0,
+    especes:      esp.count ?? 0,
+  }
 }
