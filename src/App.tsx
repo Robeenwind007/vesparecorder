@@ -24,6 +24,8 @@ import AdminTypesPieges from './pages/AdminTypesPieges'
 import AdminAppats from './pages/AdminAppats'
 import RapportPiegeagesPage from './pages/RapportPiegeagesPage'
 import AdminSauvegardePage from './pages/AdminSauvegardePage'
+import SupportPage from './pages/SupportPage'
+import AdminSupportPage from './pages/AdminSupportPage'
 
 function ModuleRoute({ allowed, children }: { allowed: boolean; children: JSX.Element }) {
   if (!allowed) return <Navigate to="/" replace />
@@ -75,6 +77,11 @@ function AppContent() {
         <Route path="admin/rapport"        element={<RapportPage />} />
         <Route path="admin/rapport-pieges" element={<RapportPiegeagesPage />} />
         <Route path="admin/sauvegarde"     element={<AdminSauvegardePage />} />
+
+        {/* Support */}
+        <Route path="support"              element={<SupportPage />} />
+        <Route path="support/:id"          element={<SupportPage />} />
+        <Route path="admin/support"        element={<AdminSupportPage />} />
       </Route>
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>

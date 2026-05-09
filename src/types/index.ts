@@ -106,3 +106,29 @@ export const getEspeceColor = (
   if (dynamiques && dynamiques[nom]) return dynamiques[nom]
   return ESPECE_COLORS_DEFAUT[nom] ?? '#D97706'
 }
+
+// ── Support / Aide ───────────────────────────────────────────
+export interface SupportTicket {
+  id: string
+  user_email: string
+  sujet: string
+  statut: 'ouvert' | 'ferme'
+  unread_count_admin: number
+  unread_count_user: number
+  last_message_at: string
+  created_at: string
+  updated_at: string
+}
+
+export interface SupportMessage {
+  id: string
+  ticket_id: string
+  auteur_email: string
+  auteur_role: 'user' | 'admin'
+  contenu: string
+  created_at: string
+}
+
+export interface SupportTicketWithMessages extends SupportTicket {
+  messages: SupportMessage[]
+}

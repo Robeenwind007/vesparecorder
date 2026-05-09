@@ -2,10 +2,12 @@ import { useNavigate } from 'react-router-dom'
 import { useUser } from '../hooks/useUser'
 import { useTheme } from '../hooks/useTheme'
 import type { Theme } from '../hooks/useTheme'
+import { useUnreadSupport } from '../hooks/useUnreadSupport'
 
 export default function ProfilPage() {
   const { user, isAdmin, logout } = useUser()
   const { theme, resolvedTheme, setTheme }  = useTheme()
+  const { count: unreadSupport } = useUnreadSupport()
   const navigate = useNavigate()
 
   const handleLogout = () => {
@@ -132,8 +134,39 @@ export default function ProfilPage() {
             <span>💾 Sauvegarde / Restauration</span>
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="m9 18 6-6-6-6"/></svg>
           </button>
+          <button onClick={() => navigate('/admin/support')}
+            className="w-full flex items-center justify-between px-4 py-3.5 text-sm hover:bg-gray-700/50 transition-colors border-t border-gray-700/50">
+            <span className="flex items-center gap-2">
+              <span>📨 Messages support</span>
+              {isAdmin && unreadSupport > 0 && (
+                <span className="inline-flex items-center justify-center min-w-[20px] h-5 px-1 bg-amber-500 text-black rounded-full text-xs font-bold">
+                  {unreadSupport}
+                </span>
+              )}
+            </span>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="m9 18 6-6-6-6"/></svg>
+          </button>
         </div>
       )}
+
+      {/* Aide & support — accessible à tous */}
+      <div className="bg-gray-800/80 border border-gray-700/50 rounded-2xl overflow-hidden">
+        <div className="px-4 py-3 border-b border-gray-700/50">
+          <p className="text-xs text-gray-500 uppercase tracking-wide">Aide</p>
+        </div>
+        <button onClick={() => navigate('/support')}
+          className="w-full flex items-center justify-between px-4 py-3.5 text-sm hover:bg-gray-700/50 transition-colors">
+          <span className="flex items-center gap-2">
+            <span>🆘 Aide & support</span>
+            {!isAdmin && unreadSupport > 0 && (
+              <span className="inline-flex items-center justify-center min-w-[20px] h-5 px-1 bg-amber-500 text-black rounded-full text-xs font-bold">
+                {unreadSupport}
+              </span>
+            )}
+          </span>
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="m9 18 6-6-6-6"/></svg>
+        </button>
+      </div>
 
       {/* Application */}
       <div className="bg-gray-800/80 border border-gray-700/50 rounded-2xl overflow-hidden">

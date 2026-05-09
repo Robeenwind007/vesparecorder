@@ -1,0 +1,289 @@
+import { useState, useEffect } from 'react'
+import { useNavigate, useParams } from 'react-router-dom'
+import { useUser } from '../hooks/useUser'
+import {
+  getTickets, getTicket, createTicket, addMessage, markAsRead,
+} from '../lib/support'
+import type { SupportTicket, SupportTicketWithMessages } from '../types'
+import { Btn, Input, Card, Spinner, Empty } from '../components/UI'
+
+export default function SupportPage() {
+  const { id } = useParams()
+  // Si on a un id → vue conversation, sinon → liste
+  return id ? <Conversation ticketId={id} /> : <ListeTickets />
+}
+
+// ──────────────────────────────────────────────────────────────
+// Liste des tickets de l'utilisateur
+// ──────────────────────────────────────────────────────────────
+function ListeTickets() {
+  const { user } = useUser()
+  const navigate = useNavigate()
+  const [tickets, setTickets] = useState<SupportTicket[]>([])
+  const [loading, setLoading] = useState(true)
+  const [showNew, setShowNew] = useState(false)
+  const [newSujet, setNewSujet]     = useState('')
+  const [newContenu, setNewContenu] = useState('')
+  const [creating, setCreating]     = useState(false)
+
+  const load = () => {
+    if (!user) return
+    setLoading(true)
+    getTickets(user.email, false).then(d => { setTickets(d); setLoading(false) })
+  }
+
+  useEffect(() => { load() }, [user])
+
+  const handleCreate = async () => {
+    if (!user || !newSujet.trim() || !newContenu.trim()) return
+    setCreating(true)
+    try {
+      const ticket = await createTicket(user.email, newSujet.trim(), newContenu.trim())
+      setShowNew(false)
+      setNewSujet(''); setNewContenu('')
+      navigate(`/support/${ticket.id}`)
+    } catch (e) {
+      alert('Erreur lors de la création du ticket')
+      console.error(e)
+    } finally {
+      setCreating(false)
+    }
+  }
+
+  if (loading) return <div className="flex items-center justify-center h-full"><Spinner size={32} /></div>
+
+  return (
+    <div className="flex flex-col h-full bg-gray-900">
+      <div className="flex items-center gap-3 px-4 py-4 border-b border-gray-800">
+        <button onClick={() => navigate('/profil')} className="text-gray-400 hover:text-white p-1">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M19 12H5M12 5l-7 7 7 7"/></svg>
+        </button>
+        <h2 className="text-lg font-semibold flex-1">Aide & support</h2>
+        <button onClick={() => setShowNew(s => !s)}
+          className="text-xs px-3 py-1.5 rounded-lg bg-amber-500 text-black font-medium">
+          {showNew ? '✕' : '+ Nouveau'}
+        </button>
+      </div>
+
+      <div className="flex-1 overflow-y-auto px-4 py-4 space-y-3 pb-24">
+
+        {/* Formulaire nouveau ticket */}
+        {showNew && (
+          <Card>
+            <p className="text-xs text-amber-500 uppercase tracking-wide font-medium mb-3">Nouvelle demande d'aide</p>
+            <div className="space-y-3">
+              <div>
+                <label className="text-xs text-gray-500">Sujet</label>
+                <Input
+                  placeholder="Ex: Comment saisir un piège ?"
+                  value={newSujet}
+                  onChange={e => setNewSujet(e.target.value)}
+                  autoFocus
+                />
+              </div>
+              <div>
+                <label className="text-xs text-gray-500">Message</label>
+                <textarea
+                  value={newContenu}
+                  onChange={e => setNewContenu(e.target.value)}
+                  rows={5}
+                  placeholder="Décrivez votre besoin en détail…"
+                  className="w-full bg-gray-800 border border-gray-700 rounded-xl px-4 py-3 text-white text-sm focus:outline-none focus:border-amber-500 resize-none"
+                />
+              </div>
+              <div className="flex gap-2">
+                <Btn variant="ghost" onClick={() => { setShowNew(false); setNewSujet(''); setNewContenu('') }} className="flex-1">
+                  Annuler
+                </Btn>
+                <Btn onClick={handleCreate} loading={creating}
+                  disabled={!newSujet.trim() || !newContenu.trim()} className="flex-1">
+                  Envoyer
+                </Btn>
+              </div>
+            </div>
+          </Card>
+        )}
+
+        {/* Liste des tickets */}
+        {tickets.length === 0 && !showNew ? (
+          <div className="pt-12">
+            <Empty
+              message="Aucune demande pour le moment. Cliquez sur « + Nouveau » pour en créer une."
+              icon="🆘"
+            />
+          </div>
+        ) : tickets.map(t => (
+          <Card key={t.id} onClick={() => navigate(`/support/${t.id}`)}>
+            <div className="flex items-start justify-between gap-2 mb-1">
+              <p className="text-sm font-semibold text-white truncate flex-1">{t.sujet}</p>
+              {t.unread_count_user > 0 && (
+                <span className="flex-shrink-0 inline-flex items-center justify-center w-5 h-5 bg-amber-500 text-black rounded-full text-xs font-bold">
+                  {t.unread_count_user}
+                </span>
+              )}
+            </div>
+            <p className="text-xs text-gray-500">
+              {fmtDate(t.last_message_at)} ·{' '}
+              <span className={t.statut === 'ouvert' ? 'text-amber-400' : 'text-gray-500'}>
+                {t.statut === 'ouvert' ? '● Ouvert' : '✓ Fermé'}
+              </span>
+            </p>
+          </Card>
+        ))}
+
+        {/* Aide */}
+        {!showNew && (
+          <div className="bg-gray-800/40 border border-gray-700/30 rounded-2xl p-4 space-y-2 mt-4">
+            <p className="text-xs text-gray-500 uppercase tracking-wide">À savoir</p>
+            <ul className="text-xs text-gray-400 space-y-1.5 list-disc pl-4">
+              <li>Posez une question, signalez un bug ou demandez une nouvelle fonctionnalité.</li>
+              <li>Vous serez notifié dans l'app dès qu'une réponse est apportée.</li>
+              <li>L'administrateur reçoit un email à chaque nouveau message.</li>
+            </ul>
+          </div>
+        )}
+      </div>
+    </div>
+  )
+}
+
+// ──────────────────────────────────────────────────────────────
+// Vue conversation d'un ticket
+// ──────────────────────────────────────────────────────────────
+function Conversation({ ticketId }: { ticketId: string }) {
+  const { user, isAdmin } = useUser()
+  const navigate = useNavigate()
+  const [ticket, setTicket]     = useState<SupportTicketWithMessages | null>(null)
+  const [loading, setLoading]   = useState(true)
+  const [reply, setReply]       = useState('')
+  const [sending, setSending]   = useState(false)
+
+  const load = () => {
+    setLoading(true)
+    getTicket(ticketId).then(t => {
+      setTicket(t)
+      setLoading(false)
+      // Marque comme lu après chargement
+      if (t && user) {
+        const role: 'user' | 'admin' = isAdmin ? 'admin' : 'user'
+        markAsRead(ticketId, role)
+      }
+    })
+  }
+
+  useEffect(() => { load() }, [ticketId])
+
+  // Polling toutes les 15s pour voir les nouvelles réponses
+  useEffect(() => {
+    const iv = setInterval(load, 15000)
+    return () => clearInterval(iv)
+  }, [ticketId])
+
+  const handleSend = async () => {
+    if (!user || !reply.trim()) return
+    setSending(true)
+    try {
+      const role: 'user' | 'admin' = isAdmin ? 'admin' : 'user'
+      await addMessage(ticketId, user.email, role, reply.trim())
+      setReply('')
+      load()
+    } catch (e) {
+      alert('Erreur lors de l\'envoi')
+      console.error(e)
+    } finally {
+      setSending(false)
+    }
+  }
+
+  if (loading) return <div className="flex items-center justify-center h-full"><Spinner size={32} /></div>
+  if (!ticket) return (
+    <div className="flex flex-col items-center justify-center h-full gap-3 text-gray-400">
+      <span className="text-5xl">🆘</span>
+      <p>Ticket introuvable</p>
+      <Btn variant="secondary" onClick={() => navigate('/support')}>Retour</Btn>
+    </div>
+  )
+
+  return (
+    <div className="flex flex-col h-full bg-gray-900">
+      {/* Header */}
+      <div className="flex items-center gap-3 px-4 py-4 border-b border-gray-800">
+        <button onClick={() => navigate(isAdmin ? '/admin/support' : '/support')}
+          className="text-gray-400 hover:text-white p-1">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M19 12H5M12 5l-7 7 7 7"/></svg>
+        </button>
+        <div className="flex-1 min-w-0">
+          <p className="text-sm font-semibold truncate">{ticket.sujet}</p>
+          <p className="text-xs text-gray-500 truncate">
+            {ticket.user_email} · {ticket.statut === 'ouvert' ? '● Ouvert' : '✓ Fermé'}
+          </p>
+        </div>
+      </div>
+
+      {/* Messages */}
+      <div className="flex-1 overflow-y-auto px-4 py-4 space-y-3 pb-32">
+        {ticket.messages.map(m => {
+          const isMine = m.auteur_email === user?.email
+          const isAdminMsg = m.auteur_role === 'admin'
+          return (
+            <div key={m.id} className={`flex ${isMine ? 'justify-end' : 'justify-start'}`}>
+              <div className={`max-w-[85%] rounded-2xl px-4 py-3 space-y-1 ${
+                isMine
+                  ? 'bg-amber-500 text-black'
+                  : isAdminMsg
+                    ? 'bg-blue-900/50 border border-blue-800/40 text-white'
+                    : 'bg-gray-800 text-white'
+              }`}>
+                {!isMine && (
+                  <p className={`text-xs font-medium ${isAdminMsg ? 'text-blue-300' : 'text-gray-400'}`}>
+                    {isAdminMsg ? '⭐ Administrateur' : '👤 Utilisateur'}
+                  </p>
+                )}
+                <p className="text-sm whitespace-pre-wrap">{m.contenu}</p>
+                <p className={`text-xs ${isMine ? 'text-black/60' : 'text-gray-500'}`}>
+                  {fmtDateTime(m.created_at)}
+                </p>
+              </div>
+            </div>
+          )
+        })}
+      </div>
+
+      {/* Input réponse */}
+      <div className="fixed bottom-0 left-0 right-0 bg-gray-900 border-t border-gray-800 px-4 py-3 safe-bottom">
+        <div className="flex gap-2 items-end">
+          <textarea
+            value={reply}
+            onChange={e => setReply(e.target.value)}
+            placeholder="Votre message…"
+            rows={2}
+            className="flex-1 bg-gray-800 border border-gray-700 rounded-xl px-3 py-2 text-white text-sm focus:outline-none focus:border-amber-500 resize-none"
+          />
+          <Btn onClick={handleSend} loading={sending} disabled={!reply.trim()}>
+            Envoyer
+          </Btn>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// ── Helpers ──────────────────────────────────────────────────
+function fmtDate(iso: string): string {
+  const d = new Date(iso)
+  const now = new Date()
+  const diff = now.getTime() - d.getTime()
+  const min = Math.floor(diff / 60000)
+  if (min < 1) return 'à l\'instant'
+  if (min < 60) return `il y a ${min} min`
+  const h = Math.floor(min / 60)
+  if (h < 24) return `il y a ${h}h`
+  const j = Math.floor(h / 24)
+  if (j < 7) return `il y a ${j}j`
+  return d.toLocaleDateString('fr-FR')
+}
+
+function fmtDateTime(iso: string): string {
+  const d = new Date(iso)
+  return d.toLocaleDateString('fr-FR') + ' ' + d.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })
+}
