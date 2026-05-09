@@ -19,18 +19,40 @@ export default function AdminUtilisateurs() {
 
   const toggleRole = async (id: string, role: string) => {
     const newRole = role === 'admin' ? 'piegeur' : 'admin'
-    await supabase.from('utilisateurs').update({ role: newRole }).eq('id', id)
-    setUsers(u => u.map(x => x.id === id ? { ...x, role: newRole as 'admin' | 'piegeur' } : x))
+    const { data } = await supabase.from('utilisateurs')
+      .update({ role: newRole })
+      .eq('id', id)
+      .select()
+      .single()
+    if (data) {
+      setUsers(u => u.map(x => x.id === id ? (data as typeof x) : x))
+    }
   }
 
   const toggleActif = async (id: string, actif: boolean) => {
-    await supabase.from('utilisateurs').update({ actif: !actif }).eq('id', id)
-    setUsers(u => u.map(x => x.id === id ? { ...x, actif: !actif } : x))
+    const { data } = await supabase.from('utilisateurs')
+      .update({ actif: !actif })
+      .eq('id', id)
+      .select()
+      .single()
+    if (data) {
+      setUsers(u => u.map(x => x.id === id ? (data as typeof x) : x))
+    }
   }
 
   const toggleModule = async (id: string, module: 'module_traitement' | 'module_piegeage', current: boolean) => {
-    await supabase.from('utilisateurs').update({ [module]: !current }).eq('id', id)
-    setUsers(u => u.map(x => x.id === id ? { ...x, [module]: !current } : x))
+    // Update + récupération du user complet (actif est mis à jour par le trigger SQL)
+    const { data } = await supabase.from('utilisateurs')
+      .update({ [module]: !current })
+      .eq('id', id)
+      .select()
+      .single()
+    if (data) {
+      setUsers(u => u.map(x => x.id === id ? (data as typeof x) : x))
+    } else {
+      // Fallback si pas de data (cas rare)
+      setUsers(u => u.map(x => x.id === id ? { ...x, [module]: !current } : x))
+    }
   }
 
   const handleImpersonate = (u: Utilisateur) => {
