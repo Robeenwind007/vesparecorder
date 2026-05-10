@@ -35,10 +35,19 @@ export default function AdminUtilisateurs() {
   }
 
   const toggleModule = async (id: string, module: 'module_traitement' | 'module_piegeage', current: boolean) => {
+    // Récupérer l'état avant pour détecter le passage actif:false→true
+    const before = users.find(u => u.id === id)
+    const wasActif = before?.actif ?? false
+
     const { data } = await supabase.from('utilisateurs')
       .update({ [module]: !current }).eq('id', id).select().single()
     if (data) {
       setUsers(u => u.map(x => x.id === id ? (data as typeof x) : x))
+      // Email de bienvenue si le compte vient de passer actif
+      if (!wasActif && (data as Utilisateur).actif) {
+        sendWelcomeEmail((data as Utilisateur))
+          .catch(e => console.warn('Email bienvenue échoué:', e))
+      }
     } else {
       setUsers(u => u.map(x => x.id === id ? { ...x, [module]: !current } : x))
     }
@@ -379,4 +388,32 @@ async function countUserData(email: string): Promise<Counts> {
     tickets:      tic.count ?? 0,
     especes:      esp.count ?? 0,
   }
+}
+
+// Envoie un email de bienvenue à l'utilisateur quand son compte est activé
+async function sendWelcomeEmail(user: Utilisateur): Promise<void> {
+  const url      = import.meta.env.VITE_SUPABASE_URL as string
+  const anonKey  = import.meta.env.VITE_SUPABASE_ANON_KEY as string
+
+  const modules: string[] = []
+  if (user.module_traitement) modules.push('Traitement des nids')
+  if (user.module_piegeage)   modules.push('Piégeage')
+  const modulesText = modules.length > 0 ? modules.join(' et ') : 'aucun module pour l\'instant'
+
+  await fetch(`${url}/functions/v1/send-support-email`, {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${anonKey}`,
+      'apikey': anonKey,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      ticket_id: 'welcome',
+      sujet: `Bienvenue sur VespaRecorder !`,
+      contenu: `Votre compte a été validé. Vous pouvez maintenant vous connecter à l'application avec votre email ${user.email}.\n\nModules autorisés : ${modulesText}.\n\nSi vous étiez sur l'écran d'attente, l'application s'ouvrira automatiquement dans les 30 secondes. Sinon, retournez sur https://vesparecorder.pages.dev pour vous connecter.`,
+      auteur_email: 'admin@vesparecorder.fr',
+      auteur_role: 'admin',
+      destinataire_email: user.email,
+    }),
+  })
 }

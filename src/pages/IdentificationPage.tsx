@@ -138,22 +138,41 @@ function PendingView({
   onValidated: (u: import('../hooks/useUser').CurrentUser) => void
   onChangeEmail: () => void
 }) {
-  const [checking, setChecking] = useState(false)
-  const [message, setMessage]   = useState<string | null>(null)
+  const [checking, setChecking]   = useState(false)
+  const [message, setMessage]     = useState<string | null>(null)
+  const [autoChecks, setAutoChecks] = useState(0)
+  const [lastCheck, setLastCheck]   = useState<Date | null>(null)
 
-  const handleCheck = async () => {
-    setChecking(true)
+  // Vérification automatique
+  const performCheck = async (auto: boolean) => {
+    if (!auto) setChecking(true)
     setMessage(null)
     const status = await checkUserStatus(email)
-    setChecking(false)
+    if (!auto) setChecking(false)
+    setLastCheck(new Date())
     if (status.actif && status.user) {
       onValidated(status.user)
-    } else if (status.exists) {
-      setMessage('Votre compte est encore en attente de validation. Réessayez plus tard.')
-    } else {
-      setMessage('Compte introuvable. Veuillez recommencer la procédure.')
+    } else if (!auto) {
+      // Message uniquement sur clic manuel
+      if (status.exists) {
+        setMessage('Votre compte est encore en attente de validation.')
+      } else {
+        setMessage('Compte introuvable. Veuillez recommencer la procédure.')
+      }
     }
   }
+
+  // Auto-check toutes les 30 secondes
+  useEffect(() => {
+    const iv = setInterval(() => {
+      setAutoChecks(c => c + 1)
+      performCheck(true)
+    }, 30000)
+    return () => clearInterval(iv)
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [email])
+
+  const handleCheck = () => performCheck(false)
 
   return (
     <div className="min-h-dvh bg-gray-900 flex flex-col items-center justify-center px-6 gap-8">
@@ -168,13 +187,25 @@ function PendingView({
             transmise à l'administrateur.
           </p>
           <p className="text-sm text-gray-400 leading-relaxed mt-3">
-            Vous pourrez utiliser l'application dès que votre compte sera validé.
-            Vous serez prévenu par email.
+            Dès que votre compte sera validé, l'application s'ouvrira automatiquement.
+            Vous pouvez laisser cette page ouverte.
           </p>
         </div>
       </div>
 
       <div className="w-full max-w-sm space-y-3">
+        {/* Indicateur de vérification automatique */}
+        <div className="flex items-center justify-center gap-2 text-xs text-gray-500">
+          <span className="relative flex h-2 w-2">
+            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75"></span>
+            <span className="relative inline-flex rounded-full h-2 w-2 bg-amber-500"></span>
+          </span>
+          Vérification automatique toutes les 30 secondes
+          {autoChecks > 0 && lastCheck && (
+            <span className="text-gray-600">·  {autoChecks} essai{autoChecks > 1 ? 's' : ''}</span>
+          )}
+        </div>
+
         <button onClick={handleCheck} disabled={checking}
           className="w-full bg-amber-500 hover:bg-amber-600 disabled:opacity-40 text-white font-semibold py-4 rounded-2xl transition-all active:scale-95">
           {checking ? (
