@@ -222,24 +222,41 @@ export async function checkUserStatus(email: string): Promise<{
   }
 }
 
-// Notification email à l'admin via Edge Function
+// Notifications email lors d'une nouvelle demande de compte :
+// 1. À l'admin → nouvelle demande à valider
+// 2. À l'utilisateur → confirmation de prise en compte
 async function notifyNewAccount(emailUser: string): Promise<void> {
   const url      = import.meta.env.VITE_SUPABASE_URL as string
   const anonKey  = import.meta.env.VITE_SUPABASE_ANON_KEY as string
-  await fetch(`${url}/functions/v1/send-support-email`, {
-    method: 'POST',
-    headers: {
-      'Authorization': `Bearer ${anonKey}`,
-      'apikey': anonKey,
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({
-      ticket_id: 'new-account',
-      sujet: `Nouvelle demande d'accès : ${emailUser}`,
-      contenu: `L'utilisateur ${emailUser} demande l'accès à VespaRecorder. Connectez-vous à l'application et activez son compte depuis « Profil → Gérer les utilisateurs ».`,
-      auteur_email: emailUser,
-      auteur_role: 'user',
-      destinataire_email: '',
-    }),
+
+  const sendMail = (payload: Record<string, string>) =>
+    fetch(`${url}/functions/v1/send-support-email`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${anonKey}`,
+        'apikey': anonKey,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(payload),
+    })
+
+  // 1) Notification admin (déjà existant)
+  await sendMail({
+    ticket_id: 'new-account',
+    sujet: `Nouvelle demande d'accès : ${emailUser}`,
+    contenu: `L'utilisateur ${emailUser} demande l'accès à VespaRecorder. Connectez-vous à l'application et activez son compte depuis « Profil → Gérer les utilisateurs ».`,
+    auteur_email: emailUser,
+    auteur_role: 'user',
+    destinataire_email: '',
+  })
+
+  // 2) Confirmation à l'utilisateur (nouveau)
+  await sendMail({
+    ticket_id: 'new-account-confirm',
+    sujet: `Votre demande d'accès à VespaRecorder`,
+    contenu: `Bonjour,\n\nVotre demande d'accès à VespaRecorder pour l'adresse ${emailUser} a bien été enregistrée.\n\nVous recevrez un nouveau message dès que l'administrateur aura validé votre compte.\n\nEn attendant, vous pouvez laisser la page d'attente ouverte dans votre navigateur. L'application s'ouvrira automatiquement dès validation, sans action de votre part.`,
+    auteur_email: 'noreply@vesparecorder.fr',
+    auteur_role: 'admin',
+    destinataire_email: emailUser,
   })
 }
