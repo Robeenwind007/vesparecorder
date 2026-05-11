@@ -424,7 +424,7 @@ async function sendWelcomeEmail(user: Utilisateur): Promise<void> {
     body: JSON.stringify({
       ticket_id: 'welcome',
       sujet: `Bienvenue sur VespaRecorder !`,
-      contenu: `Votre compte a été validé. Vous pouvez maintenant vous connecter à l'application avec votre email ${user.email}.\n\nModules autorisés : ${modulesText}.\n\nSi vous étiez sur l'écran d'attente, l'application s'ouvrira automatiquement dans les 30 secondes. Sinon, retournez sur https://vesparecorder.pages.dev pour vous connecter.`,
+      contenu: `Votre compte a été validé. Vous pouvez maintenant vous connecter à l'application avec votre email ${user.email}.\n\nModules autorisés : ${modulesText}.\n\nSi vous étiez sur l'écran d'attente, l'application s'ouvrira automatiquement dans les 30 secondes. Sinon, retournez sur https://www.vesparecorder.fr pour vous connecter.`,
       auteur_email: 'admin@vesparecorder.fr',
       auteur_role: 'admin',
       destinataire_email: user.email,
