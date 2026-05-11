@@ -16,6 +16,9 @@ export interface Utilisateur {
   actif: boolean
   module_traitement: boolean
   module_piegeage: boolean
+  demande_traitement: boolean
+  demande_piegeage: boolean
+  entreprise: string | null
   created_at: string
 }
 

@@ -41,7 +41,7 @@ const UserContext = createContext<UserCtx>({
   stopImpersonating: () => {}, logout: () => {}
 })
 
-const SELECT_COLS = 'email, nom, role, actif, module_traitement, module_piegeage'
+const SELECT_COLS = 'email, nom, role, actif, module_traitement, module_piegeage, demande_traitement, demande_piegeage, entreprise'
 
 export function UserProvider({ children }: { children: React.ReactNode }) {
   const [user, _setUser]         = useState<CurrentUser | null>(null)
@@ -148,7 +148,13 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
 
 export const useUser = () => useContext(UserContext)
 
-export async function resolveUser(email: string): Promise<CurrentUser | null> {
+export interface NewAccountRequest {
+  demande_traitement: boolean
+  demande_piegeage: boolean
+  entreprise?: string | null
+}
+
+export async function resolveUser(email: string, request?: NewAccountRequest): Promise<CurrentUser | null> {
   const normalized = email.trim().toLowerCase()
   const { data, error } = await supabase
     .from('utilisateurs')
@@ -158,27 +164,44 @@ export async function resolveUser(email: string): Promise<CurrentUser | null> {
 
   if (error || !data) {
     // Création d'un nouveau compte EN ATTENTE
-    // (modules désactivés par défaut → trigger SQL met actif=false)
+    // Si aucun request fourni → écran d'attente, ne pas créer (cas premier lookup)
+    if (!request) {
+      // Comportement original : on crée mais sans demandes spécifiques
+      const { data: created } = await supabase
+        .from('utilisateurs')
+        .insert({
+          email: normalized,
+          role: 'piegeur',
+        })
+        .select(SELECT_COLS)
+        .single()
+      if (!created) return null
+      notifyNewAccount(normalized, false, false, null)
+        .catch(e => console.warn('Notif nouvel utilisateur échouée:', e))
+      return null
+    }
+
+    // Avec demandes : on crée avec les demandes
     const { data: created } = await supabase
       .from('utilisateurs')
       .insert({
         email: normalized,
         role: 'piegeur',
-        // Les défauts SQL gèrent le reste : actif=false, modules=false
+        demande_traitement: request.demande_traitement,
+        demande_piegeage: request.demande_piegeage,
+        entreprise: request.entreprise ?? null,
       })
       .select(SELECT_COLS)
       .single()
     if (!created) return null
 
-    // Notification à l'admin (best-effort, ne bloque pas la création)
-    notifyNewAccount(normalized).catch(e => console.warn('Notif nouvel utilisateur échouée:', e))
+    notifyNewAccount(normalized, request.demande_traitement, request.demande_piegeage, request.entreprise ?? null)
+      .catch(e => console.warn('Notif nouvel utilisateur échouée:', e))
 
-    // Compte créé mais inactif → renvoyer null pour basculer sur écran d'attente
     return null
   }
 
   if (!data.actif) {
-    // Compte connu mais en attente de validation
     return null
   }
 
@@ -223,11 +246,27 @@ export async function checkUserStatus(email: string): Promise<{
 }
 
 // Notifications email lors d'une nouvelle demande de compte :
-// 1. À l'admin → nouvelle demande à valider
+// 1. À l'admin → nouvelle demande à valider (avec détails)
 // 2. À l'utilisateur → confirmation de prise en compte
-async function notifyNewAccount(emailUser: string): Promise<void> {
+async function notifyNewAccount(
+  emailUser: string,
+  demTraitement: boolean,
+  demPiegeage: boolean,
+  entreprise: string | null,
+): Promise<void> {
   const url      = import.meta.env.VITE_SUPABASE_URL as string
   const anonKey  = import.meta.env.VITE_SUPABASE_ANON_KEY as string
+
+  // Construction du résumé des demandes
+  const demandes: string[] = []
+  if (demTraitement) demandes.push('🐝 Traitement des nids')
+  if (demPiegeage)   demandes.push('🪤 Piégeage')
+  const demandesText = demandes.length > 0
+    ? demandes.join(' et ')
+    : 'aucun module précisé'
+  const entrepriseText = entreprise
+    ? `\n\nEntreprise : ${entreprise}`
+    : ''
 
   const sendMail = (payload: Record<string, string>) =>
     fetch(`${url}/functions/v1/send-support-email`, {
@@ -240,17 +279,17 @@ async function notifyNewAccount(emailUser: string): Promise<void> {
       body: JSON.stringify(payload),
     })
 
-  // 1) Notification admin (déjà existant)
+  // 1) Notification admin
   await sendMail({
     ticket_id: 'new-account',
     sujet: `Nouvelle demande d'accès : ${emailUser}`,
-    contenu: `L'utilisateur ${emailUser} demande l'accès à VespaRecorder. Connectez-vous à l'application et activez son compte depuis « Profil → Gérer les utilisateurs ».`,
+    contenu: `L'utilisateur ${emailUser} demande l'accès à VespaRecorder.\n\nModules demandés : ${demandesText}${entrepriseText}\n\nConnectez-vous à l'application et activez son compte depuis « Profil → Gérer les utilisateurs ».`,
     auteur_email: emailUser,
     auteur_role: 'user',
     destinataire_email: '',
   })
 
-  // 2) Confirmation à l'utilisateur (nouveau)
+  // 2) Confirmation à l'utilisateur
   await sendMail({
     ticket_id: 'new-account-confirm',
     sujet: `Votre demande d'accès à VespaRecorder`,

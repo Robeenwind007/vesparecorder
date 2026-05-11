@@ -105,6 +105,9 @@ export default function AdminUtilisateurs() {
               <div className="flex items-start justify-between gap-2">
                 <div className="min-w-0">
                   <p className={`text-sm font-medium truncate ${u.actif ? 'text-white' : 'text-gray-500'}`}>{u.email}</p>
+                  {u.entreprise && (
+                    <p className="text-xs text-amber-400 mt-0.5 truncate">🏢 {u.entreprise}</p>
+                  )}
                   <p className="text-xs text-gray-500 mt-0.5">Depuis le {new Date(u.created_at).toLocaleDateString('fr-FR')}</p>
                 </div>
                 {isPending ? (
@@ -119,6 +122,17 @@ export default function AdminUtilisateurs() {
                   </span>
                 )}
               </div>
+
+              {/* Bannière modules demandés (uniquement si demandes faites) */}
+              {isPending && (u.demande_traitement || u.demande_piegeage) && (
+                <div className="bg-blue-900/20 border border-blue-800/40 rounded-xl px-3 py-2 space-y-1">
+                  <p className="text-[10px] uppercase tracking-wide text-blue-400 font-medium">Demandé par l'utilisateur</p>
+                  <div className="flex gap-2 flex-wrap text-xs text-blue-200">
+                    {u.demande_traitement && <span>🐝 Traitement</span>}
+                    {u.demande_piegeage   && <span>🪤 Piégeage</span>}
+                  </div>
+                </div>
+              )}
 
               {u.role !== 'admin' && (
                 <div className="bg-gray-900/40 border border-gray-700/50 rounded-xl p-3 space-y-2">

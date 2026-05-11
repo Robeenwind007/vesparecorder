@@ -1,6 +1,5 @@
 // Page affichée uniquement au premier lancement ou après déconnexion
-// L'utilisateur saisit son email → stocké dans localStorage pour toujours
-// Si compte en attente → écran "Validation requise"
+// L'utilisateur saisit son email + ses demandes de modules → stocké dans localStorage
 
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
@@ -9,10 +8,13 @@ import { useUser, resolveUser, checkUserStatus } from '../hooks/useUser'
 const PENDING_KEY = 'vespa_pending_email'
 
 export default function IdentificationPage() {
-  const [email, setEmail]     = useState('')
-  const [error, setError]     = useState('')
-  const [loading, setLoading] = useState(false)
-  const [pendingEmail, setPendingEmail] = useState<string | null>(null)
+  const [email, setEmail]         = useState('')
+  const [demTraitement, setDemTraitement] = useState(false)
+  const [demPiegeage, setDemPiegeage]     = useState(false)
+  const [entreprise, setEntreprise]       = useState('')
+  const [error, setError]                 = useState('')
+  const [loading, setLoading]             = useState(false)
+  const [pendingEmail, setPendingEmail]   = useState<string | null>(null)
   const { setUser } = useUser()
   const navigate = useNavigate()
 
@@ -29,21 +31,46 @@ export default function IdentificationPage() {
       setError('Saisissez un email valide')
       return
     }
+    if (!demTraitement && !demPiegeage) {
+      setError('Veuillez cocher au moins un module souhaité')
+      return
+    }
+    if (demTraitement && !entreprise.trim()) {
+      setError('Le nom d\'entreprise est obligatoire pour le module Traitement')
+      return
+    }
     setError('')
     setLoading(true)
-    const user = await resolveUser(trimmed)
-    setLoading(false)
 
-    if (!user) {
-      // Compte créé ou existant mais en attente
+    // 1er appel : check si l'utilisateur existe déjà (compte actif)
+    const existing = await checkUserStatus(trimmed)
+
+    if (existing.actif && existing.user) {
+      // Compte déjà validé → connexion directe
+      setLoading(false)
+      localStorage.removeItem(PENDING_KEY)
+      setUser(existing.user)
+      navigate('/', { replace: true })
+      return
+    }
+
+    if (existing.exists) {
+      // Compte existant mais en attente → on bascule sur l'écran d'attente
+      setLoading(false)
       localStorage.setItem(PENDING_KEY, trimmed)
       setPendingEmail(trimmed)
       return
     }
-    // Compte actif → connexion
-    localStorage.removeItem(PENDING_KEY)
-    setUser(user)
-    navigate('/', { replace: true })
+
+    // Compte n'existe pas → on le crée avec les demandes
+    await resolveUser(trimmed, {
+      demande_traitement: demTraitement,
+      demande_piegeage: demPiegeage,
+      entreprise: demTraitement ? entreprise.trim() : null,
+    })
+    setLoading(false)
+    localStorage.setItem(PENDING_KEY, trimmed)
+    setPendingEmail(trimmed)
   }
 
   // ── Vue : compte en attente de validation ─────────────────
@@ -58,13 +85,16 @@ export default function IdentificationPage() {
         localStorage.removeItem(PENDING_KEY)
         setPendingEmail(null)
         setEmail('')
+        setDemTraitement(false)
+        setDemPiegeage(false)
+        setEntreprise('')
       }}
     />
   }
 
-  // ── Vue : saisie email ─────────────────────────────────────
+  // ── Vue : saisie email + modules ──────────────────────────
   return (
-    <div className="min-h-dvh bg-gray-900 flex flex-col items-center justify-center px-6 gap-10">
+    <div className="min-h-dvh bg-gray-900 flex flex-col items-center justify-center px-6 py-8 gap-8">
       <div className="flex flex-col items-center gap-4">
         <div className="w-24 h-24 rounded-3xl bg-amber-500 flex items-center justify-center shadow-xl shadow-amber-500/30">
           <span className="text-5xl">🐝</span>
@@ -77,24 +107,88 @@ export default function IdentificationPage() {
 
       <div className="w-full max-w-sm space-y-5">
         <div className="text-center space-y-1">
-          <p className="text-base text-gray-300 font-medium">Qui êtes-vous ?</p>
+          <p className="text-base text-gray-300 font-medium">Bienvenue !</p>
           <p className="text-sm text-gray-500">
-            Saisissez votre email une seule fois.<br/>
-            L'application s'en souvient sur cet appareil.
+            Saisissez votre email et indiquez ce que vous<br/>
+            souhaitez faire avec l'application.
           </p>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-4">
-          <input
-            type="email"
-            value={email}
-            onChange={e => setEmail(e.target.value)}
-            placeholder="votre@email.com"
-            autoComplete="email"
-            autoFocus
-            inputMode="email"
-            className="w-full bg-gray-800 border border-gray-700 rounded-2xl px-5 py-4 text-white text-lg placeholder-gray-600 focus:outline-none focus:border-amber-500 transition-colors text-center"
-          />
+          <div>
+            <label className="text-xs text-gray-500 mb-1.5 block px-1">Email</label>
+            <input
+              type="email"
+              value={email}
+              onChange={e => setEmail(e.target.value)}
+              placeholder="votre@email.com"
+              autoComplete="email"
+              autoFocus
+              inputMode="email"
+              className="w-full bg-gray-800 border border-gray-700 rounded-2xl px-5 py-4 text-white text-lg placeholder-gray-600 focus:outline-none focus:border-amber-500 transition-colors text-center"
+            />
+          </div>
+
+          <div>
+            <label className="text-xs text-gray-500 mb-2 block px-1">Que souhaitez-vous faire ?</label>
+            <div className="space-y-2">
+
+              {/* Traiter les nids */}
+              <label className={`flex items-start gap-3 p-3 rounded-2xl border cursor-pointer transition-colors ${
+                demTraitement
+                  ? 'bg-amber-500/10 border-amber-500/40'
+                  : 'bg-gray-800 border-gray-700 hover:border-gray-600'
+              }`}>
+                <input type="checkbox"
+                  checked={demTraitement}
+                  onChange={e => setDemTraitement(e.target.checked)}
+                  className="mt-1 w-4 h-4 accent-amber-500 cursor-pointer"
+                />
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-medium text-white">🐝 Traiter les nids</p>
+                  <p className="text-xs text-gray-400 mt-0.5">
+                    Intervention sur les nids · <span className="text-amber-400">réservé aux professionnels</span>
+                  </p>
+                </div>
+              </label>
+
+              {/* Piéger */}
+              <label className={`flex items-start gap-3 p-3 rounded-2xl border cursor-pointer transition-colors ${
+                demPiegeage
+                  ? 'bg-amber-500/10 border-amber-500/40'
+                  : 'bg-gray-800 border-gray-700 hover:border-gray-600'
+              }`}>
+                <input type="checkbox"
+                  checked={demPiegeage}
+                  onChange={e => setDemPiegeage(e.target.checked)}
+                  className="mt-1 w-4 h-4 accent-amber-500 cursor-pointer"
+                />
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-medium text-white">🪤 Poser des pièges</p>
+                  <p className="text-xs text-gray-400 mt-0.5">
+                    Capture de reines au printemps · ouvert à tous
+                  </p>
+                </div>
+              </label>
+
+            </div>
+          </div>
+
+          {/* Nom d'entreprise (visible uniquement si Traitement coché) */}
+          {demTraitement && (
+            <div>
+              <label className="text-xs text-gray-500 mb-1.5 block px-1">
+                Nom d'entreprise <span className="text-amber-400">*</span>
+              </label>
+              <input
+                type="text"
+                value={entreprise}
+                onChange={e => setEntreprise(e.target.value)}
+                placeholder="Ex: SAS DésinfectPro"
+                className="w-full bg-gray-800 border border-gray-700 rounded-2xl px-4 py-3 text-white text-sm placeholder-gray-600 focus:outline-none focus:border-amber-500"
+              />
+            </div>
+          )}
 
           {error && (
             <p className="text-sm text-red-400 bg-red-900/20 border border-red-900/40 rounded-xl px-4 py-3 text-center">
@@ -138,12 +232,11 @@ function PendingView({
   onValidated: (u: import('../hooks/useUser').CurrentUser) => void
   onChangeEmail: () => void
 }) {
-  const [checking, setChecking]   = useState(false)
-  const [message, setMessage]     = useState<string | null>(null)
+  const [checking, setChecking]     = useState(false)
+  const [message, setMessage]       = useState<string | null>(null)
   const [autoChecks, setAutoChecks] = useState(0)
   const [lastCheck, setLastCheck]   = useState<Date | null>(null)
 
-  // Vérification automatique
   const performCheck = async (auto: boolean) => {
     if (!auto) setChecking(true)
     setMessage(null)
@@ -153,7 +246,6 @@ function PendingView({
     if (status.actif && status.user) {
       onValidated(status.user)
     } else if (!auto) {
-      // Message uniquement sur clic manuel
       if (status.exists) {
         setMessage('Votre compte est encore en attente de validation.')
       } else {
@@ -162,7 +254,6 @@ function PendingView({
     }
   }
 
-  // Auto-check toutes les 30 secondes
   useEffect(() => {
     const iv = setInterval(() => {
       setAutoChecks(c => c + 1)
@@ -194,7 +285,6 @@ function PendingView({
       </div>
 
       <div className="w-full max-w-sm space-y-3">
-        {/* Indicateur de vérification automatique */}
         <div className="flex items-center justify-center gap-2 text-xs text-gray-500">
           <span className="relative flex h-2 w-2">
             <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75"></span>
