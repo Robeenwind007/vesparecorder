@@ -31,18 +31,10 @@ export default function IdentificationPage() {
       setError('Saisissez un email valide')
       return
     }
-    if (!demTraitement && !demPiegeage) {
-      setError('Veuillez cocher au moins un module souhaité')
-      return
-    }
-    if (demTraitement && !entreprise.trim()) {
-      setError('Le nom d\'entreprise est obligatoire pour le module Traitement')
-      return
-    }
     setError('')
     setLoading(true)
 
-    // 1er appel : check si l'utilisateur existe déjà (compte actif)
+    // 1er appel : check si l'utilisateur existe déjà
     const existing = await checkUserStatus(trimmed)
 
     if (existing.actif && existing.user) {
@@ -62,7 +54,19 @@ export default function IdentificationPage() {
       return
     }
 
-    // Compte n'existe pas → on le crée avec les demandes
+    // Compte n'existe pas → on valide les modules avant de créer
+    if (!demTraitement && !demPiegeage) {
+      setLoading(false)
+      setError('Veuillez cocher au moins un module souhaité')
+      return
+    }
+    if (demTraitement && !entreprise.trim()) {
+      setLoading(false)
+      setError('Le nom d\'entreprise est obligatoire pour le module Traitement')
+      return
+    }
+
+    // Création
     await resolveUser(trimmed, {
       demande_traitement: demTraitement,
       demande_piegeage: demPiegeage,
