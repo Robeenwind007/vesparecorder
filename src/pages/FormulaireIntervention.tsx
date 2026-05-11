@@ -46,6 +46,7 @@ export default function FormulaireIntervention() {
   const [newDonneur, setNewDonneur]         = useState('')
   const [savingDonneur, setSavingDonneur]   = useState(false)
   const fileRef = useRef<HTMLInputElement>(null)
+  const fileGalleryRef = useRef<HTMLInputElement>(null)
 
   const [form, setForm] = useState<FormData>({
     date_observation: new Date().toISOString().split('T')[0],
@@ -324,7 +325,9 @@ export default function FormulaireIntervention() {
         {/* Photo */}
         <div className="space-y-2">
           <label className="text-sm font-medium text-gray-400">Image</label>
+          {/* Deux inputs : un pour caméra, un pour photothèque */}
           <input ref={fileRef} type="file" accept="image/*" capture="environment" onChange={handlePhoto} className="hidden" />
+          <input ref={fileGalleryRef} type="file" accept="image/*" onChange={handlePhoto} className="hidden" />
           {preview ? (
             <div className="relative">
               <img src={preview} alt="Nid" className="w-full h-48 object-cover rounded-xl border border-gray-700" />
@@ -332,14 +335,25 @@ export default function FormulaireIntervention() {
                 className="absolute top-2 right-2 bg-gray-900/80 text-white rounded-full w-8 h-8 flex items-center justify-center">✕</button>
             </div>
           ) : (
-            <button onClick={() => fileRef.current?.click()}
-              className="w-full h-36 border-2 border-dashed border-gray-700 rounded-xl flex flex-col items-center justify-center gap-2 text-gray-500 hover:border-gray-500 transition-colors">
-              <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
-                <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/>
-                <circle cx="12" cy="13" r="4"/>
-              </svg>
-              <span className="text-sm">Prendre une photo</span>
-            </button>
+            <div className="grid grid-cols-2 gap-2">
+              <button onClick={() => fileRef.current?.click()}
+                className="h-28 border-2 border-dashed border-gray-700 rounded-xl flex flex-col items-center justify-center gap-1.5 text-gray-500 hover:border-amber-500/60 hover:text-amber-500 transition-colors">
+                <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
+                  <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/>
+                  <circle cx="12" cy="13" r="4"/>
+                </svg>
+                <span className="text-xs font-medium">Prendre une photo</span>
+              </button>
+              <button onClick={() => fileGalleryRef.current?.click()}
+                className="h-28 border-2 border-dashed border-gray-700 rounded-xl flex flex-col items-center justify-center gap-1.5 text-gray-500 hover:border-amber-500/60 hover:text-amber-500 transition-colors">
+                <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
+                  <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>
+                  <circle cx="8.5" cy="8.5" r="1.5"/>
+                  <polyline points="21 15 16 10 5 21"/>
+                </svg>
+                <span className="text-xs font-medium">Photothèque</span>
+              </button>
+            </div>
           )}
         </div>
 

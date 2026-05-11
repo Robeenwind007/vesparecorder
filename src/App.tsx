@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, lazy, Suspense } from 'react'
+import { useState, useEffect, lazy, Suspense } from 'react'
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import { UserProvider, useUser } from './hooks/useUser'
 import { ThemeProvider } from './hooks/useTheme'
@@ -44,21 +44,27 @@ function ModuleRoute({ allowed, children }: { allowed: boolean; children: JSX.El
 }
 
 function AppContent() {
-  const { user, loading, hasModuleTraitement, hasModulePiegeage } = useUser()
-  const [splashDone, setSplashDone] = useState(false)
-  const initialLoadingRef = useRef(true)
+  const { user, hasModuleTraitement, hasModulePiegeage } = useUser()
+  // Splash : montré au plus une fois par session (sessionStorage = effacé quand l'onglet ferme)
+  const [splashDone, setSplashDone] = useState(() => {
+    try { return sessionStorage.getItem('vespa_splash_done') === '1' }
+    catch { return false }
+  })
 
   useEffect(() => {
-    if (!loading) initialLoadingRef.current = false
-  }, [loading])
-
-  useEffect(() => {
-    const timer = setTimeout(() => setSplashDone(true), 2500)
+    if (splashDone) return
+    const timer = setTimeout(() => {
+      setSplashDone(true)
+      try { sessionStorage.setItem('vespa_splash_done', '1') } catch {}
+    }, 2500)
     return () => clearTimeout(timer)
-  }, [])
+  }, [splashDone])
 
-  const showSplash = !splashDone || (initialLoadingRef.current && loading)
-  if (showSplash) return <SplashPage onDone={() => setSplashDone(true)} />
+  const showSplash = !splashDone
+  if (showSplash) return <SplashPage onDone={() => {
+    setSplashDone(true)
+    try { sessionStorage.setItem('vespa_splash_done', '1') } catch {}
+  }} />
 
   return (
     <Suspense fallback={<PageLoader />}>

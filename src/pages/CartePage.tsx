@@ -72,8 +72,34 @@ export default function CartePage() {
     L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
       attribution: '© OpenStreetMap', maxZoom: 19,
     }).addTo(leaflet.current)
-    L.control.zoom({ position: 'bottomright' }).addTo(leaflet.current)
+    L.control.zoom({ position: 'topright' }).addTo(leaflet.current)
     layerRef.current = L.layerGroup().addTo(leaflet.current)
+
+    // Géolocalisation : centre la carte sur la position de l'utilisateur si possible
+    if ('geolocation' in navigator) {
+      navigator.geolocation.getCurrentPosition(
+        pos => {
+          if (leaflet.current) {
+            leaflet.current.setView([pos.coords.latitude, pos.coords.longitude], 13)
+            // Marqueur de position utilisateur (petit cercle bleu)
+            L.circleMarker([pos.coords.latitude, pos.coords.longitude], {
+              radius: 8,
+              fillColor: '#3B82F6',
+              color: '#ffffff',
+              weight: 2,
+              opacity: 1,
+              fillOpacity: 0.8,
+            }).addTo(leaflet.current).bindTooltip('Vous êtes ici', { permanent: false })
+          }
+        },
+        err => {
+          // Position refusée ou indisponible : on garde le centre par défaut, sans bloquer
+          console.warn('Géolocalisation indisponible:', err.message)
+        },
+        { enableHighAccuracy: false, timeout: 5000, maximumAge: 60000 }
+      )
+    }
+
     return () => { leaflet.current?.remove(); leaflet.current = null }
   }, [])
 
@@ -316,7 +342,7 @@ function FabSaisie({
   if (showNid && !showPiege) {
     return (
       <button onClick={onNid}
-        className="absolute bottom-24 right-3 z-[1000] w-14 h-14 bg-amber-500 rounded-full flex items-center justify-center shadow-lg shadow-amber-500/40 active:scale-95 transition-transform text-white text-2xl font-light">
+        className="absolute bottom-72 right-3 z-[1100] w-14 h-14 bg-amber-500 rounded-full flex items-center justify-center shadow-lg shadow-amber-500/40 active:scale-95 transition-transform text-white text-2xl font-light">
         +
       </button>
     )
@@ -324,7 +350,7 @@ function FabSaisie({
   if (showPiege && !showNid) {
     return (
       <button onClick={onPiege}
-        className="absolute bottom-24 right-3 z-[1000] w-14 h-14 bg-amber-500 rounded-full flex items-center justify-center shadow-lg shadow-amber-500/40 active:scale-95 transition-transform text-white text-2xl font-light">
+        className="absolute bottom-72 right-3 z-[1100] w-14 h-14 bg-amber-500 rounded-full flex items-center justify-center shadow-lg shadow-amber-500/40 active:scale-95 transition-transform text-white text-2xl font-light">
         +
       </button>
     )
@@ -332,7 +358,7 @@ function FabSaisie({
 
   // Les deux modules → menu de choix
   return (
-    <div className="absolute bottom-24 right-3 z-[1000] flex flex-col items-end gap-2">
+    <div className="absolute bottom-72 right-3 z-[1100] flex flex-col items-end gap-2">
       {open && (
         <>
           <button onClick={() => { setOpen(false); onNid() }}
