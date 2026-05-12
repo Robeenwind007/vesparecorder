@@ -5,6 +5,7 @@ import {
   createObservation, updateObservation, getObservation,
   getDonneurs, addDonneur, uploadPhoto, geocodeAdresse
 } from '../lib/supabase'
+import { getEntreprise } from '../lib/entreprise'
 import type { Espece, TypeNid, Emplacement, DonneurOrdre } from '../types'
 import { TYPES_NID, EMPLACEMENTS } from '../types'
 import { useEspeces } from '../hooks/useEspeces'
@@ -45,6 +46,11 @@ export default function FormulaireIntervention() {
   const [showAddDonneur, setShowAddDonneur] = useState(false)
   const [newDonneur, setNewDonneur]         = useState('')
   const [savingDonneur, setSavingDonneur]   = useState(false)
+  // Envoi fiche au donneur d'ordre
+  const [showConfirmSend, setShowConfirmSend] = useState(false)
+  const [showSuccess, setShowSuccess]         = useState(false)
+  const [sendError, setSendError]             = useState<string | null>(null)
+  const [sending, setSending]                 = useState(false)
   const fileRef = useRef<HTMLInputElement>(null)
 
   const [form, setForm] = useState<FormData>({
@@ -180,6 +186,88 @@ export default function FormulaireIntervention() {
       console.error(e)
     } finally {
       setSaving(false)
+    }
+  }
+
+  // Donneur d'ordre actuellement sélectionné (objet complet, pas juste le nom)
+  const donneurSelectionne = donneurs.find(d => d.nom === form.donneur_ordre) ?? null
+
+  // Email valide ? (format simple)
+  const donneurAEmailValide = !!(
+    donneurSelectionne?.email &&
+    /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(donneurSelectionne.email)
+  )
+
+  // Envoyer la fiche d'intervention par email au donneur d'ordre
+  const sendFicheIntervention = async () => {
+    if (!user || !donneurSelectionne?.email) return
+    if (form.latitude == null || form.longitude == null) {
+      setSendError('La position GPS du nid est manquante')
+      return
+    }
+    setSendError(null)
+    setSending(true)
+    try {
+      // Récupère les infos entreprise du pro
+      const entreprise = await getEntreprise(user.email)
+      const proAdresse = [
+        entreprise?.entreprise_adresse,
+        entreprise?.entreprise_complement,
+        entreprise?.entreprise_cp,
+        entreprise?.entreprise_ville,
+      ].filter(Boolean).join(', ')
+
+      // Construit le payload qui sera affiché dans le mail
+      const data = {
+        id_court: id ? id.slice(0, 8) : '',
+        numero_fiche: '', // futur : numéro métier
+        espece: form.espece,
+        emplacement: form.emplacement || '—',
+        commentaire: form.beneficiaire || '',
+        adresse: form.adresse || '',
+        latitude: form.latitude,
+        longitude: form.longitude,
+        date_observation: new Date(form.date_observation).toLocaleDateString('fr-FR'),
+        date_traitement: form.retire ? new Date().toLocaleDateString('fr-FR') : null,
+        retire: form.retire,
+        photo_url: form.image_url,
+        donneur_ordre: form.donneur_ordre,
+        // Infos pro
+        pro_entreprise: entreprise?.entreprise || null,
+        pro_siret: entreprise?.siret || null,
+        pro_adresse_complete: proAdresse || null,
+        pro_telephone: entreprise?.entreprise_telephone || null,
+      }
+
+      const url      = import.meta.env.VITE_SUPABASE_URL as string
+      const anonKey  = import.meta.env.VITE_SUPABASE_ANON_KEY as string
+      const res = await fetch(`${url}/functions/v1/send-support-email`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${anonKey}`,
+          'apikey': anonKey,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          ticket_id: 'fiche-intervention',
+          sujet: `Compte-rendu d'intervention — ${form.donneur_ordre}`,
+          contenu: JSON.stringify(data), // l'Edge Function parse ce JSON
+          auteur_email: user.email,       // utilisé pour reply_to
+          auteur_role: 'admin',
+          destinataire_email: donneurSelectionne.email!,
+        }),
+      })
+      if (!res.ok) throw new Error(`HTTP ${res.status}`)
+      const result = await res.json()
+      if (!result.ok) throw new Error(result.error || 'Erreur inconnue')
+
+      setShowConfirmSend(false)
+      setShowSuccess(true)
+    } catch (e) {
+      setSendError('Erreur lors de l\'envoi : ' + (e as Error).message)
+      console.error(e)
+    } finally {
+      setSending(false)
     }
   }
 
@@ -358,7 +446,76 @@ export default function FormulaireIntervention() {
             <ToggleBtn label="OUI" selected={form.retire}  onClick={() => set('retire', true)} />
           </div>
         </div>
+
+        {/* CTA Informer le donneur d'ordre — uniquement si donneur a email valide */}
+        {donneurAEmailValide && isEdit && (
+          <button onClick={() => { setSendError(null); setShowConfirmSend(true) }}
+            className="w-full flex items-center justify-center gap-2 bg-amber-500/10 border border-amber-500/40 hover:bg-amber-500/20 text-amber-400 font-medium py-3.5 rounded-2xl transition-colors">
+            <span className="text-xl">📧</span>
+            <span className="text-sm">Informer le donneur d'ordre</span>
+          </button>
+        )}
       </div>
+
+      {/* Modale de confirmation envoi */}
+      {showConfirmSend && (
+        <div className="fixed inset-0 z-[2000] bg-black/80 flex items-end sm:items-center justify-center p-0 sm:p-4">
+          <div className="bg-gray-900 border border-gray-700 rounded-t-3xl sm:rounded-3xl w-full sm:max-w-md max-h-[90vh] overflow-y-auto safe-bottom">
+            <div className="p-5 space-y-4">
+              <div className="flex items-center gap-3">
+                <span className="text-3xl">📧</span>
+                <div>
+                  <p className="text-base font-semibold text-white">Envoyer fiche d'intervention ?</p>
+                  <p className="text-xs text-gray-500 mt-0.5">Le donneur recevra un compte-rendu par email.</p>
+                </div>
+              </div>
+
+              <div className="bg-gray-800/80 border border-gray-700/50 rounded-xl p-3 text-xs space-y-1">
+                <p><span className="text-gray-500">Destinataire :</span> <span className="text-white">{donneurSelectionne?.email}</span></p>
+                <p><span className="text-gray-500">Donneur :</span> <span className="text-white">{form.donneur_ordre}</span></p>
+                <p><span className="text-gray-500">Espèce :</span> <span className="text-white">{form.espece}</span></p>
+                <p><span className="text-gray-500">Emplacement :</span> <span className="text-white">{form.emplacement || '—'}</span></p>
+                <p><span className="text-gray-500">Statut :</span> <span className="text-white">{form.retire ? '✓ Nid retiré' : '○ Non retiré'}</span></p>
+              </div>
+
+              {sendError && (
+                <p className="text-sm text-red-400 bg-red-900/20 border border-red-900/40 rounded-xl px-3 py-2 text-center">
+                  {sendError}
+                </p>
+              )}
+
+              <div className="flex gap-2 pt-1">
+                <Btn variant="ghost" onClick={() => setShowConfirmSend(false)} className="flex-1" disabled={sending}>
+                  Annuler
+                </Btn>
+                <Btn onClick={sendFicheIntervention} loading={sending} className="flex-1">
+                  Envoyer
+                </Btn>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modale de succès */}
+      {showSuccess && (
+        <div className="fixed inset-0 z-[2000] bg-black/80 flex items-end sm:items-center justify-center p-0 sm:p-4">
+          <div className="bg-gray-900 border border-gray-700 rounded-t-3xl sm:rounded-3xl w-full sm:max-w-md safe-bottom">
+            <div className="p-5 space-y-4">
+              <div className="flex items-center gap-3">
+                <span className="text-3xl">✓</span>
+                <div>
+                  <p className="text-base font-semibold text-white">Fiche d'intervention envoyée</p>
+                  <p className="text-xs text-gray-500 mt-0.5">Le donneur va recevoir le compte-rendu par email.</p>
+                </div>
+              </div>
+              <Btn onClick={() => setShowSuccess(false)} fullWidth>
+                Fermer
+              </Btn>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Footer fixe */}
       <div className="fixed bottom-0 left-0 right-0 bg-gray-900 border-t border-gray-800 px-4 py-4 flex gap-3 safe-bottom">
