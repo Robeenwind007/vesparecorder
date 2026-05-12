@@ -25,11 +25,38 @@ export const getDonneurs = async (email?: string, isAdmin = false): Promise<Donn
   return data ?? []
 }
 
-export const addDonneur = async (nom: string, email?: string) =>
+export interface DonneurFields {
+  nom: string
+  adresse?: string | null
+  adresse_complement?: string | null
+  code_postal?: string | null
+  ville?: string | null
+  responsable?: string | null
+  email?: string | null
+}
+
+export const addDonneur = async (fields: DonneurFields, createdByEmail?: string) =>
   supabase.from('donneurs_ordre').insert({
-    nom,
-    created_by_email: email ?? null
-  })
+    nom: fields.nom.trim(),
+    adresse: fields.adresse?.trim() || null,
+    adresse_complement: fields.adresse_complement?.trim() || null,
+    code_postal: fields.code_postal?.trim() || null,
+    ville: fields.ville?.trim() || null,
+    responsable: fields.responsable?.trim() || null,
+    email: fields.email?.trim() || null,
+    created_by_email: createdByEmail ?? null,
+  }).select().single()
+
+export const updateDonneur = async (id: string, fields: Partial<DonneurFields>) =>
+  supabase.from('donneurs_ordre').update({
+    nom: fields.nom?.trim(),
+    adresse: fields.adresse?.trim() || null,
+    adresse_complement: fields.adresse_complement?.trim() || null,
+    code_postal: fields.code_postal?.trim() || null,
+    ville: fields.ville?.trim() || null,
+    responsable: fields.responsable?.trim() || null,
+    email: fields.email?.trim() || null,
+  }).eq('id', id).select().single()
 
 // ── Observations ─────────────────────────────────────────────
 // emailFiltre : si fourni et non-admin → filtrage par piégeur

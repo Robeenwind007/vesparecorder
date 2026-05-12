@@ -27,6 +27,12 @@ export interface DonneurOrdre {
   nom: string
   actif: boolean
   created_by_email: string | null
+  adresse: string | null
+  adresse_complement: string | null
+  code_postal: string | null
+  ville: string | null
+  responsable: string | null
+  email: string | null
 }
 
 // Espèce paramétrable (table especes)

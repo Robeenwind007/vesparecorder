@@ -92,7 +92,7 @@ export default function FormulaireIntervention() {
     const nom = newDonneur.trim()
     if (!nom) return
     setSavingDonneur(true)
-    await addDonneur(nom, user?.email)
+    await addDonneur({ nom }, user?.email)
     await loadDonneurs()
     set('donneur_ordre', nom)
     setNewDonneur('')
@@ -221,23 +221,29 @@ export default function FormulaireIntervention() {
 
           {/* Formulaire ajout inline */}
           {showAddDonneur && (
-            <div className="flex gap-2">
-              <input
-                type="text"
-                value={newDonneur}
-                onChange={e => setNewDonneur(e.target.value)}
-                onKeyDown={e => e.key === 'Enter' && handleAddDonneur()}
-                placeholder="Nom du donneur d'ordre…"
-                autoFocus
-                className="flex-1 bg-gray-700 border border-amber-500/50 rounded-xl px-4 py-2.5 text-white text-sm focus:outline-none focus:border-amber-500"
-              />
-              <button
-                onClick={handleAddDonneur}
-                disabled={savingDonneur || !newDonneur.trim()}
-                className="px-4 py-2.5 bg-amber-500 hover:bg-amber-600 disabled:opacity-40 text-black font-medium text-sm rounded-xl transition-colors"
-              >
-                {savingDonneur ? '…' : 'OK'}
-              </button>
+            <div className="space-y-2">
+              <div className="flex gap-2">
+                <input
+                  type="text"
+                  value={newDonneur}
+                  onChange={e => setNewDonneur(e.target.value)}
+                  onKeyDown={e => e.key === 'Enter' && handleAddDonneur()}
+                  placeholder="Nom du donneur d'ordre…"
+                  autoFocus
+                  className="flex-1 bg-gray-700 border border-amber-500/50 rounded-xl px-4 py-2.5 text-white text-sm focus:outline-none focus:border-amber-500"
+                />
+                <button
+                  onClick={handleAddDonneur}
+                  disabled={savingDonneur || !newDonneur.trim()}
+                  className="px-4 py-2.5 bg-amber-500 hover:bg-amber-600 disabled:opacity-40 text-black font-medium text-sm rounded-xl transition-colors"
+                >
+                  {savingDonneur ? '…' : 'OK'}
+                </button>
+              </div>
+              <p className="text-xs text-amber-500/70">
+                💡 Les coordonnées complètes (adresse, ville, contact) pourront être ajoutées
+                plus tard depuis la page « Gérer les donneurs d'ordre ».
+              </p>
             </div>
           )}
 
