@@ -117,7 +117,11 @@ export default function FormulaireIntervention() {
           setLoadingGPS(false)
           resolve(coords)
         },
-        () => { setLoadingGPS(false); resolve(null) },
+        () => {
+          setLoadingGPS(false)
+          alert('Impossible de récupérer la position GPS.\nVérifiez que la localisation est autorisée, ou saisissez l\'adresse.')
+          resolve(null)
+        },
         { enableHighAccuracy: true, timeout: 10000 }
       )
     })
@@ -133,8 +137,12 @@ export default function FormulaireIntervention() {
   const validate = () => {
     const errs: Record<string, string> = {}
     if (!form.donneur_ordre) errs.donneur_ordre = 'Requis'
-    if (form.origine_localisation === 'Adresse' && !form.adresse.trim())
-      errs.adresse = 'Adresse requise'
+    // Au moins l'un des deux : adresse OU GPS
+    const aAdresse = form.adresse.trim().length > 0
+    const aGPS = form.latitude != null && form.longitude != null
+    if (!aAdresse && !aGPS) {
+      errs.localisation = 'Saisissez une adresse ou capturez la position GPS'
+    }
     setErrors(errs)
     return Object.keys(errs).length === 0
   }
@@ -143,33 +151,30 @@ export default function FormulaireIntervention() {
     if (!validate() || !user) return
     setSaving(true)
     try {
-      // Capture GPS automatique si mode GPS et coordonnées manquantes
       let lat = form.latitude, lng = form.longitude
-      if (form.origine_localisation === 'GPS' && (!lat || !lng)) {
-        const coords = await captureGPS()
-        if (!coords) {
-          alert('Impossible de récupérer la position GPS.\nVérifiez que la localisation est autorisée ou choisissez \'Adresse\'.')
-          setSaving(false)
-          return
-        }
-        lat = coords.lat
-        lng = coords.lng
-      }
+      const adresse = form.adresse.trim()
 
       let image_url = form.image_url
       if (form.image_file) image_url = await uploadPhoto(user.email, form.image_file)
 
-      if (form.origine_localisation === 'Adresse' && form.adresse && !lat) {
-        const coords = await geocodeAdresse(form.adresse)
+      // Si l'utilisateur a saisi une adresse mais pas de GPS, on tente le géocodage
+      // pour avoir au moins une position approximative sur la carte
+      if (adresse && !lat) {
+        const coords = await geocodeAdresse(adresse)
         if (coords) { lat = coords.lat; lng = coords.lng }
       }
+
+      // origine_localisation : reflet de ce qui a été utilisé en priorité (compatibilité historique)
+      const origine: 'GPS' | 'Adresse' =
+        form.latitude != null ? 'GPS' :
+        adresse ? 'Adresse' : 'GPS'
 
       const payload = {
         date_observation: form.date_observation,
         donneur_ordre: form.donneur_ordre || null,
-        origine_localisation: form.origine_localisation,
+        origine_localisation: origine,
         latitude: lat, longitude: lng,
-        adresse: form.origine_localisation === 'Adresse' ? form.adresse : null,
+        adresse: adresse || null,
         espece: form.espece, type_nid: form.type_nid,
         nombre_nids: form.nombre_nids,
         beneficiaire: form.beneficiaire || null,
@@ -345,27 +350,41 @@ export default function FormulaireIntervention() {
           {errors.donneur_ordre && <p className="text-xs text-red-400">{errors.donneur_ordre}</p>}
         </div>
 
-        {/* Localisation */}
+        {/* Localisation : adresse libre + bouton GPS, au moins l'un des deux */}
         <div className="space-y-3">
-          <label className="text-sm font-medium text-gray-400">Choix Localisation <span className="text-amber-500">*</span></label>
-          <div className="grid grid-cols-2 gap-3">
-            {(['GPS', 'Adresse'] as const).map(o => (
-              <ToggleBtn key={o} label={o} selected={form.origine_localisation === o} onClick={() => set('origine_localisation', o)} />
-            ))}
+          <div className="flex items-center justify-between">
+            <label className="text-sm font-medium text-gray-400">
+              Localisation <span className="text-amber-500">*</span>
+            </label>
+            <span className="text-xs text-gray-600">Au moins l'un des deux</span>
           </div>
-          {form.origine_localisation === 'GPS' ? (
-            <div className="space-y-1.5">
-              <Btn variant="secondary" fullWidth onClick={captureGPS} loading={loadingGPS}>
-                📍 {loadingGPS ? 'Acquisition…' : form.latitude ? `${form.latitude.toFixed(5)}, ${form.longitude?.toFixed(5)}` : 'Capturer position GPS'}
-              </Btn>
-              <p className="text-xs text-gray-600">Position capturée automatiquement à la sauvegarde si non renseignée.</p>
-            </div>
-          ) : (
-            <div className="space-y-1.5">
-              <Input placeholder="ex: 13 Av. des Quatre Vents, 44360 Cordemais"
-                value={form.adresse} onChange={e => set('adresse', e.target.value)} error={errors.adresse} />
-              <p className="text-xs text-gray-600">Position géocodée automatiquement.</p>
-            </div>
+
+          {/* Adresse libre */}
+          <div className="space-y-1.5">
+            <Input placeholder="ex: 13 Av. des Quatre Vents, 44360 Cordemais"
+              value={form.adresse}
+              onChange={e => set('adresse', e.target.value)} />
+          </div>
+
+          {/* Bouton GPS */}
+          <div className="space-y-1.5">
+            <Btn variant="secondary" fullWidth onClick={captureGPS} loading={loadingGPS}>
+              📍 {loadingGPS
+                ? 'Acquisition…'
+                : form.latitude != null && form.longitude != null
+                  ? `${form.latitude.toFixed(5)}, ${form.longitude.toFixed(5)}`
+                  : 'Capturer position GPS'}
+            </Btn>
+            {form.latitude != null && form.longitude != null && (
+              <button onClick={() => { set('latitude', null); set('longitude', null) }}
+                className="text-xs text-gray-500 hover:text-red-400 transition-colors">
+                Effacer la position GPS
+              </button>
+            )}
+          </div>
+
+          {errors.localisation && (
+            <p className="text-xs text-red-400">{errors.localisation}</p>
           )}
         </div>
 
