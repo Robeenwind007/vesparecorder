@@ -17,11 +17,12 @@ const EMPTY_FIELDS: DonneurFields = {
 }
 
 export default function AdminDonneurs() {
-  const { isAdmin, user } = useUser()
+  const { isAdmin, hasModuleTraitement, user } = useUser()
   const navigate          = useNavigate()
   const [donneurs, setDonneurs] = useState<DonneurOrdre[]>([])
   const [loading, setLoading]   = useState(true)
-  const [voirTout, setVoirTout] = useState(true)
+  // Admin → toggle Tous/Mes ; Pro non-admin → toujours "ses" donneurs uniquement
+  const [voirTout, setVoirTout] = useState(isAdmin)
 
   // États du formulaire (ajout OU édition)
   const [editId, setEditId]         = useState<string | null>(null)
@@ -36,9 +37,10 @@ export default function AdminDonneurs() {
   }
 
   useEffect(() => {
-    if (!isAdmin) { navigate('/'); return }
+    // Accès autorisé : admin OU pro (module Traitement). Sinon redirection.
+    if (!isAdmin && !hasModuleTraitement) { navigate('/'); return }
     load()
-  }, [isAdmin, navigate])
+  }, [isAdmin, hasModuleTraitement, navigate])
 
   const validateFields = (): string | null => {
     if (!fields.nom.trim())         return 'Le nom est obligatoire'
@@ -103,7 +105,10 @@ export default function AdminDonneurs() {
 
   if (loading) return <div className="flex items-center justify-center h-full"><Spinner size={32} /></div>
 
-  const donneursAffiches = voirTout
+  // Filtrage selon les droits :
+  // - Admin : peut voir tout (toggle Tous/Les miens)
+  // - Pro non-admin : voit uniquement ses propres donneurs
+  const donneursAffiches = (isAdmin && voirTout)
     ? donneurs
     : donneurs.filter(d => d.created_by_email === user?.email)
 
@@ -127,16 +132,18 @@ export default function AdminDonneurs() {
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M19 12H5M12 5l-7 7 7 7"/></svg>
         </button>
         <h2 className="text-lg font-semibold flex-1">
-          Donneurs d'ordre ({donneursAffiches.length})
+          {isAdmin ? `Donneurs d'ordre (${donneursAffiches.length})` : `Mes donneurs (${donneursAffiches.length})`}
         </h2>
-        <button onClick={() => setVoirTout(v => !v)}
-          className={`text-xs px-3 py-1.5 rounded-lg border font-medium transition-colors ${
-            voirTout
-              ? 'bg-amber-500 border-amber-500 text-black'
-              : 'bg-gray-800 border-gray-700 text-gray-300'
-          }`}>
-          {voirTout ? '👁 Tous' : '👤 Les miens'}
-        </button>
+        {isAdmin && (
+          <button onClick={() => setVoirTout(v => !v)}
+            className={`text-xs px-3 py-1.5 rounded-lg border font-medium transition-colors ${
+              voirTout
+                ? 'bg-amber-500 border-amber-500 text-black'
+                : 'bg-gray-800 border-gray-700 text-gray-300'
+            }`}>
+            {voirTout ? '👁 Tous' : '👤 Les miens'}
+          </button>
+        )}
       </div>
 
       <div className="flex-1 overflow-y-auto px-4 py-4 space-y-5 pb-24">
@@ -219,18 +226,21 @@ export default function AdminDonneurs() {
           </div>
         )}
 
-        {/* Liste groupée */}
+        {/* Liste groupée (header utilisateur uniquement quand admin voit Tous) */}
         {ordreUtilisateurs.map(emailUser => {
           const liste = groupes[emailUser]
           const isMine = emailUser === user?.email
+          const showHeader = isAdmin && voirTout
           return (
             <div key={emailUser} className="space-y-2">
-              <p className="text-xs uppercase tracking-wide font-medium flex items-center gap-2">
-                <span className={isMine ? 'text-amber-400' : 'text-gray-500'}>
-                  {isMine ? '⭐ Mes donneurs' : `✉ ${emailUser}`}
-                </span>
-                <span className="text-gray-600">({liste.length})</span>
-              </p>
+              {showHeader && (
+                <p className="text-xs uppercase tracking-wide font-medium flex items-center gap-2">
+                  <span className={isMine ? 'text-amber-400' : 'text-gray-500'}>
+                    {isMine ? '⭐ Mes donneurs' : `✉ ${emailUser}`}
+                  </span>
+                  <span className="text-gray-600">({liste.length})</span>
+                </p>
+              )}
               {liste.map(d => {
                 const incomplet = !d.adresse || !d.ville || !d.email
                 return (

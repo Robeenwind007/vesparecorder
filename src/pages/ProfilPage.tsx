@@ -123,6 +123,20 @@ export default function ProfilPage() {
         </div>
       </div>
 
+      {/* ── Mon activité (uniquement pour pros avec module Traitement, hors admin qui l'a dans Administration) ── */}
+      {hasModuleTraitement && !isAdmin && (
+        <div className="bg-gray-800/80 border border-gray-700/50 rounded-2xl overflow-hidden">
+          <div className="px-4 py-3 border-b border-gray-700/50">
+            <p className="text-xs text-gray-500 uppercase tracking-wide">Mon activité</p>
+          </div>
+          <button onClick={() => navigate('/admin/donneurs')}
+            className="w-full flex items-center justify-between px-4 py-3.5 text-sm hover:bg-gray-700/50 transition-colors">
+            <span>🏢 Mes donneurs d'ordre</span>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="m9 18 6-6-6-6"/></svg>
+          </button>
+        </div>
+      )}
+
       {/* Admin */}
       {isAdmin && (
         <div className="bg-gray-800/80 border border-gray-700/50 rounded-2xl overflow-hidden">
