@@ -284,8 +284,8 @@ export default function CartePage() {
         )}
       </div>
 
-      {/* Légende */}
-      <div className="absolute bottom-20 right-3 z-[1000] bg-gray-900/95 backdrop-blur border border-gray-700 rounded-xl p-3 space-y-1.5 max-w-[180px]">
+      {/* Légende — positionnée au-dessus du FAB (qui est à bottom-24) */}
+      <div className="absolute bottom-40 right-3 z-[1000] bg-gray-900/95 backdrop-blur border border-gray-700 rounded-xl p-3 space-y-1.5 max-w-[180px]">
         {hasModuleTraitement && filtreType !== 'pieges' && (
           <>
             <p className="text-[10px] text-gray-500 uppercase tracking-wide">Nids</p>
@@ -342,7 +342,7 @@ function FabSaisie({
   if (showNid && !showPiege) {
     return (
       <button onClick={onNid}
-        className="absolute bottom-72 right-3 z-[1100] w-14 h-14 bg-amber-500 rounded-full flex items-center justify-center shadow-lg shadow-amber-500/40 active:scale-95 transition-transform text-white text-2xl font-light">
+        className="absolute bottom-24 right-3 z-[1100] w-14 h-14 bg-amber-500 rounded-full flex items-center justify-center shadow-lg shadow-amber-500/40 active:scale-95 transition-transform text-white text-2xl font-light">
         +
       </button>
     )
@@ -350,7 +350,7 @@ function FabSaisie({
   if (showPiege && !showNid) {
     return (
       <button onClick={onPiege}
-        className="absolute bottom-72 right-3 z-[1100] w-14 h-14 bg-amber-500 rounded-full flex items-center justify-center shadow-lg shadow-amber-500/40 active:scale-95 transition-transform text-white text-2xl font-light">
+        className="absolute bottom-24 right-3 z-[1100] w-14 h-14 bg-amber-500 rounded-full flex items-center justify-center shadow-lg shadow-amber-500/40 active:scale-95 transition-transform text-white text-2xl font-light">
         +
       </button>
     )
@@ -358,7 +358,7 @@ function FabSaisie({
 
   // Les deux modules → menu de choix
   return (
-    <div className="absolute bottom-72 right-3 z-[1100] flex flex-col items-end gap-2">
+    <div className="absolute bottom-24 right-3 z-[1100] flex flex-col items-end gap-2">
       {open && (
         <>
           <button onClick={() => { setOpen(false); onNid() }}
