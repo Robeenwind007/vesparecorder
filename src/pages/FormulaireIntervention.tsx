@@ -19,11 +19,11 @@ interface FormData {
   longitude: number | null
   adresse: string
   espece: Espece
-  type_nid: TypeNid
+  type_nid: TypeNid | ''
   nombre_nids: number
   beneficiaire: string
   emplacement: Emplacement | ''
-  retire: boolean
+  retire: boolean | null
   saisi_par_email: string
   image_file: File | null
   image_url: string | null
@@ -57,9 +57,9 @@ export default function FormulaireIntervention() {
     date_observation: new Date().toISOString().split('T')[0],
     donneur_ordre: '', origine_localisation: 'GPS',
     latitude: null, longitude: null, adresse: '',
-    espece: 'Asiatique', type_nid: 'Secondaire',
+    espece: 'Asiatique', type_nid: '',
     nombre_nids: 1, beneficiaire: '', emplacement: '',
-    retire: false, saisi_par_email: '',
+    retire: null, saisi_par_email: '',
     image_file: null, image_url: null,
   })
 
@@ -81,7 +81,7 @@ export default function FormulaireIntervention() {
           origine_localisation: obs.origine_localisation ?? 'GPS',
           latitude: obs.latitude, longitude: obs.longitude,
           adresse: obs.adresse ?? '',
-          espece: obs.espece, type_nid: (obs.type_nid ?? 'Secondaire') as TypeNid,
+          espece: obs.espece, type_nid: (obs.type_nid ?? '') as TypeNid | '',
           nombre_nids: obs.nombre_nids, beneficiaire: obs.beneficiaire ?? '',
           emplacement: (obs.emplacement ?? '') as Emplacement | '',
           retire: obs.retire, saisi_par_email: obs.saisi_par_email ?? '',
@@ -143,48 +143,63 @@ export default function FormulaireIntervention() {
     if (!aAdresse && !aGPS) {
       errs.localisation = 'Saisissez une adresse ou capturez la position GPS'
     }
+    if (!form.type_nid) errs.type_nid = 'Choisissez un type de nid'
+    if (!form.emplacement) errs.emplacement = 'Choisissez un emplacement'
+    if (form.retire === null) errs.retire = 'Indiquez si le nid est retiré'
     setErrors(errs)
     return Object.keys(errs).length === 0
+  }
+
+  // Sauvegarde la fiche en base et retourne les valeurs effectives (lat/lng/image_url)
+  // utilisées après géocodage et upload. Ne navigue pas.
+  const saveAndReturn = async (): Promise<{ lat: number | null; lng: number | null; image_url: string | null } | null> => {
+    if (!user) return null
+    let lat = form.latitude, lng = form.longitude
+    const adresse = form.adresse.trim()
+
+    let image_url = form.image_url
+    if (form.image_file) image_url = await uploadPhoto(user.email, form.image_file)
+
+    if (adresse && !lat) {
+      const coords = await geocodeAdresse(adresse)
+      if (coords) { lat = coords.lat; lng = coords.lng }
+    }
+
+    const origine: 'GPS' | 'Adresse' =
+      form.latitude != null ? 'GPS' :
+      adresse ? 'Adresse' : 'GPS'
+
+    const payload = {
+      date_observation: form.date_observation,
+      donneur_ordre: form.donneur_ordre || null,
+      origine_localisation: origine,
+      latitude: lat, longitude: lng,
+      adresse: adresse || null,
+      espece: form.espece, type_nid: form.type_nid as TypeNid,
+      nombre_nids: form.nombre_nids,
+      beneficiaire: form.beneficiaire || null,
+      emplacement: (form.emplacement || null) as Emplacement | null,
+      retire: form.retire as boolean, image_url,
+      saisi_par_email: isEdit ? (form.saisi_par_email || user.email) : user.email,
+    }
+
+    if (isEdit && id) await updateObservation(id, payload)
+    else await createObservation(payload)
+
+    // On synchronise le state local avec les valeurs effectivement enregistrées
+    setForm(f => ({
+      ...f,
+      latitude: lat, longitude: lng,
+      image_url, image_file: null,
+    }))
+    return { lat, lng, image_url }
   }
 
   const handleSave = async () => {
     if (!validate() || !user) return
     setSaving(true)
     try {
-      let lat = form.latitude, lng = form.longitude
-      const adresse = form.adresse.trim()
-
-      let image_url = form.image_url
-      if (form.image_file) image_url = await uploadPhoto(user.email, form.image_file)
-
-      // Si l'utilisateur a saisi une adresse mais pas de GPS, on tente le géocodage
-      // pour avoir au moins une position approximative sur la carte
-      if (adresse && !lat) {
-        const coords = await geocodeAdresse(adresse)
-        if (coords) { lat = coords.lat; lng = coords.lng }
-      }
-
-      // origine_localisation : reflet de ce qui a été utilisé en priorité (compatibilité historique)
-      const origine: 'GPS' | 'Adresse' =
-        form.latitude != null ? 'GPS' :
-        adresse ? 'Adresse' : 'GPS'
-
-      const payload = {
-        date_observation: form.date_observation,
-        donneur_ordre: form.donneur_ordre || null,
-        origine_localisation: origine,
-        latitude: lat, longitude: lng,
-        adresse: adresse || null,
-        espece: form.espece, type_nid: form.type_nid,
-        nombre_nids: form.nombre_nids,
-        beneficiaire: form.beneficiaire || null,
-        emplacement: (form.emplacement || null) as Emplacement | null,
-        retire: form.retire, image_url,
-        saisi_par_email: isEdit ? (form.saisi_par_email || user.email) : user.email,
-      }
-
-      if (isEdit && id) await updateObservation(id, payload)
-      else await createObservation(payload)
+      await saveAndReturn()
       navigate(-1)
     } catch (e) {
       alert('Erreur lors de la sauvegarde')
@@ -203,17 +218,40 @@ export default function FormulaireIntervention() {
     /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(donneurSelectionne.email)
   )
 
+  // Tous les champs obligatoires sont-ils remplis ?
+  const tousChampsObligatoiresRemplis = !!(
+    form.donneur_ordre &&
+    (form.adresse.trim() || (form.latitude != null && form.longitude != null)) &&
+    form.type_nid &&
+    form.emplacement &&
+    form.retire !== null
+  )
+
+  // Le CTA "Informer le donneur d'ordre" doit-il être affiché ?
+  // Vue dès que la fiche est complète + le donneur a un email valide
+  // (peu importe si la fiche est sauvegardée ou non)
+  const peutInformerDonneur = donneurAEmailValide && tousChampsObligatoiresRemplis
+
   // Envoyer la fiche d'intervention par email au donneur d'ordre
+  // Workflow : sauvegarde d'abord (avec upload photo + géocodage), puis envoi
   const sendFicheIntervention = async () => {
     if (!user || !donneurSelectionne?.email) return
-    if (form.latitude == null || form.longitude == null) {
-      setSendError('La position GPS du nid est manquante')
+    if (!validate()) {
+      setSendError('Veuillez compléter tous les champs obligatoires')
       return
     }
     setSendError(null)
     setSending(true)
     try {
-      // Récupère les infos entreprise du pro
+      // 1) Sauvegarde la fiche en base (assure que photo uploadée et lat/lng disponibles)
+      const saved = await saveAndReturn()
+      if (!saved) throw new Error('Erreur lors de la sauvegarde')
+      const { lat, lng, image_url } = saved
+      if (lat == null || lng == null) {
+        throw new Error('La position GPS n\'a pas pu être déterminée')
+      }
+
+      // 2) Récupère les infos entreprise du pro
       const entreprise = await getEntreprise(user.email)
       const proAdresse = [
         entreprise?.entreprise_adresse,
@@ -222,28 +260,28 @@ export default function FormulaireIntervention() {
         entreprise?.entreprise_ville,
       ].filter(Boolean).join(', ')
 
-      // Construit le payload qui sera affiché dans le mail
+      // 3) Construit le payload qui sera affiché dans le mail
       const data = {
-        id_court: id ? id.slice(0, 8) : '',
-        numero_fiche: '', // futur : numéro métier
+        id_court: id ? id.slice(0, 8) : 'nouvelle',
+        numero_fiche: '',
         espece: form.espece,
         emplacement: form.emplacement || '—',
         commentaire: form.beneficiaire || '',
         adresse: form.adresse || '',
-        latitude: form.latitude,
-        longitude: form.longitude,
+        latitude: lat,
+        longitude: lng,
         date_observation: new Date(form.date_observation).toLocaleDateString('fr-FR'),
         date_traitement: form.retire ? new Date().toLocaleDateString('fr-FR') : null,
         retire: form.retire,
-        photo_url: form.image_url,
+        photo_url: image_url,
         donneur_ordre: form.donneur_ordre,
-        // Infos pro
         pro_entreprise: entreprise?.entreprise || null,
         pro_siret: entreprise?.siret || null,
         pro_adresse_complete: proAdresse || null,
         pro_telephone: entreprise?.entreprise_telephone || null,
       }
 
+      // 4) Envoi de l'email
       const url      = import.meta.env.VITE_SUPABASE_URL as string
       const anonKey  = import.meta.env.VITE_SUPABASE_ANON_KEY as string
       const res = await fetch(`${url}/functions/v1/send-support-email`, {
@@ -256,8 +294,8 @@ export default function FormulaireIntervention() {
         body: JSON.stringify({
           ticket_id: 'fiche-intervention',
           sujet: `Compte-rendu d'intervention — ${form.donneur_ordre}`,
-          contenu: JSON.stringify(data), // l'Edge Function parse ce JSON
-          auteur_email: user.email,       // utilisé pour reply_to
+          contenu: JSON.stringify(data),
+          auteur_email: user.email,
           auteur_role: 'admin',
           destinataire_email: donneurSelectionne.email!,
         }),
@@ -407,6 +445,7 @@ export default function FormulaireIntervention() {
               <ToggleBtn key={t} label={t} selected={form.type_nid === t} onClick={() => set('type_nid', t)} />
             ))}
           </div>
+          {errors.type_nid && <p className="text-xs text-red-400">{errors.type_nid}</p>}
         </div>
 
         {/* Nombre de nids */}
@@ -432,6 +471,7 @@ export default function FormulaireIntervention() {
                 onClick={() => set('emplacement', form.emplacement === emp ? '' : emp)} />
             ))}
           </div>
+          {errors.emplacement && <p className="text-xs text-red-400">{errors.emplacement}</p>}
         </div>
 
         {/* Photo */}
@@ -461,13 +501,14 @@ export default function FormulaireIntervention() {
         <div className="space-y-2">
           <label className="text-sm font-medium text-gray-400">Retiré <span className="text-amber-500">*</span></label>
           <div className="grid grid-cols-2 gap-3">
-            <ToggleBtn label="NON" selected={!form.retire} onClick={() => set('retire', false)} />
-            <ToggleBtn label="OUI" selected={form.retire}  onClick={() => set('retire', true)} />
+            <ToggleBtn label="NON" selected={form.retire === false} onClick={() => set('retire', false)} />
+            <ToggleBtn label="OUI" selected={form.retire === true}  onClick={() => set('retire', true)} />
           </div>
+          {errors.retire && <p className="text-xs text-red-400">{errors.retire}</p>}
         </div>
 
-        {/* CTA Informer le donneur d'ordre — uniquement si donneur a email valide */}
-        {donneurAEmailValide && isEdit && (
+        {/* CTA Informer le donneur d'ordre — visible dès que la fiche est complète + donneur a email valide */}
+        {peutInformerDonneur && (
           <button onClick={() => { setSendError(null); setShowConfirmSend(true) }}
             className="w-full flex items-center justify-center gap-2 bg-amber-500/10 border border-amber-500/40 hover:bg-amber-500/20 text-amber-400 font-medium py-3.5 rounded-2xl transition-colors">
             <span className="text-xl">📧</span>
