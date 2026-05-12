@@ -8,6 +8,7 @@ import { useUser, resolveUser, checkUserStatus } from '../hooks/useUser'
 const PENDING_KEY = 'vespa_pending_email'
 
 export default function IdentificationPage() {
+  const [step, setStep]           = useState<'email' | 'modules'>('email')
   const [email, setEmail]         = useState('')
   const [demTraitement, setDemTraitement] = useState(false)
   const [demPiegeage, setDemPiegeage]     = useState(false)
@@ -24,7 +25,8 @@ export default function IdentificationPage() {
     if (stored) setPendingEmail(stored)
   }, [])
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  // Étape 1 : valider l'email et router selon son statut
+  const handleEmailSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     const trimmed = email.trim().toLowerCase()
     if (!trimmed || !trimmed.includes('@')) {
@@ -34,7 +36,6 @@ export default function IdentificationPage() {
     setError('')
     setLoading(true)
 
-    // 1er appel : check si l'utilisateur existe déjà
     const existing = await checkUserStatus(trimmed)
 
     if (existing.actif && existing.user) {
@@ -54,19 +55,26 @@ export default function IdentificationPage() {
       return
     }
 
-    // Compte n'existe pas → on valide les modules avant de créer
+    // Nouveau compte → on passe à l'étape "modules"
+    setLoading(false)
+    setStep('modules')
+  }
+
+  // Étape 2 : valider les modules et créer le compte
+  const handleModulesSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    const trimmed = email.trim().toLowerCase()
     if (!demTraitement && !demPiegeage) {
-      setLoading(false)
       setError('Veuillez cocher au moins un module souhaité')
       return
     }
     if (demTraitement && !entreprise.trim()) {
-      setLoading(false)
       setError('Le nom d\'entreprise est obligatoire pour le module Traitement')
       return
     }
+    setError('')
+    setLoading(true)
 
-    // Création
     await resolveUser(trimmed, {
       demande_traitement: demTraitement,
       demande_piegeage: demPiegeage,
@@ -75,6 +83,15 @@ export default function IdentificationPage() {
     setLoading(false)
     localStorage.setItem(PENDING_KEY, trimmed)
     setPendingEmail(trimmed)
+  }
+
+  // Retour à l'étape email
+  const handleBackToEmail = () => {
+    setStep('email')
+    setError('')
+    setDemTraitement(false)
+    setDemPiegeage(false)
+    setEntreprise('')
   }
 
   // ── Vue : compte en attente de validation ─────────────────
@@ -110,115 +127,162 @@ export default function IdentificationPage() {
       </div>
 
       <div className="w-full max-w-sm space-y-5">
-        <div className="text-center space-y-1">
-          <p className="text-base text-gray-300 font-medium">Bienvenue !</p>
-          <p className="text-sm text-gray-500">
-            Saisissez votre email et indiquez ce que vous<br/>
-            souhaitez faire avec l'application.
-          </p>
-        </div>
 
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div>
-            <label className="text-xs text-gray-500 mb-1.5 block px-1">Email</label>
-            <input
-              type="email"
-              value={email}
-              onChange={e => setEmail(e.target.value)}
-              placeholder="votre@email.com"
-              autoComplete="email"
-              autoFocus
-              inputMode="email"
-              className="w-full bg-gray-800 border border-gray-700 rounded-2xl px-5 py-4 text-white text-lg placeholder-gray-600 focus:outline-none focus:border-amber-500 transition-colors text-center"
-            />
-          </div>
-
-          <div>
-            <label className="text-xs text-gray-500 mb-2 block px-1">Que souhaitez-vous faire ?</label>
-            <div className="space-y-2">
-
-              {/* Traiter les nids */}
-              <label className={`flex items-start gap-3 p-3 rounded-2xl border cursor-pointer transition-colors ${
-                demTraitement
-                  ? 'bg-amber-500/10 border-amber-500/40'
-                  : 'bg-gray-800 border-gray-700 hover:border-gray-600'
-              }`}>
-                <input type="checkbox"
-                  checked={demTraitement}
-                  onChange={e => setDemTraitement(e.target.checked)}
-                  className="mt-1 w-4 h-4 accent-amber-500 cursor-pointer"
-                />
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium text-white">🐝 Traiter les nids</p>
-                  <p className="text-xs text-gray-400 mt-0.5">
-                    Intervention sur les nids · <span className="text-amber-400">réservé aux professionnels</span>
-                  </p>
-                </div>
-              </label>
-
-              {/* Piéger */}
-              <label className={`flex items-start gap-3 p-3 rounded-2xl border cursor-pointer transition-colors ${
-                demPiegeage
-                  ? 'bg-amber-500/10 border-amber-500/40'
-                  : 'bg-gray-800 border-gray-700 hover:border-gray-600'
-              }`}>
-                <input type="checkbox"
-                  checked={demPiegeage}
-                  onChange={e => setDemPiegeage(e.target.checked)}
-                  className="mt-1 w-4 h-4 accent-amber-500 cursor-pointer"
-                />
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium text-white">🪤 Poser des pièges</p>
-                  <p className="text-xs text-gray-400 mt-0.5">
-                    Capture de reines au printemps · ouvert à tous
-                  </p>
-                </div>
-              </label>
-
+        {/* ── ÉTAPE 1 : saisie de l'email ── */}
+        {step === 'email' && (
+          <>
+            <div className="text-center space-y-1">
+              <p className="text-base text-gray-300 font-medium">Bienvenue !</p>
+              <p className="text-sm text-gray-500">
+                Saisissez votre email pour commencer.
+              </p>
             </div>
-          </div>
 
-          {/* Nom d'entreprise (visible uniquement si Traitement coché) */}
-          {demTraitement && (
-            <div>
-              <label className="text-xs text-gray-500 mb-1.5 block px-1">
-                Nom d'entreprise <span className="text-amber-400">*</span>
-              </label>
-              <input
-                type="text"
-                value={entreprise}
-                onChange={e => setEntreprise(e.target.value)}
-                placeholder="Ex: SAS DésinfectPro"
-                className="w-full bg-gray-800 border border-gray-700 rounded-2xl px-4 py-3 text-white text-sm placeholder-gray-600 focus:outline-none focus:border-amber-500"
-              />
-            </div>
-          )}
+            <form onSubmit={handleEmailSubmit} className="space-y-4">
+              <div>
+                <label className="text-xs text-gray-500 mb-1.5 block px-1">Email</label>
+                <input
+                  type="email"
+                  value={email}
+                  onChange={e => setEmail(e.target.value)}
+                  placeholder="votre@email.com"
+                  autoComplete="email"
+                  autoFocus
+                  inputMode="email"
+                  className="w-full bg-gray-800 border border-gray-700 rounded-2xl px-5 py-4 text-white text-lg placeholder-gray-600 focus:outline-none focus:border-amber-500 transition-colors text-center"
+                />
+              </div>
 
-          {error && (
-            <p className="text-sm text-red-400 bg-red-900/20 border border-red-900/40 rounded-xl px-4 py-3 text-center">
-              {error}
+              {error && (
+                <p className="text-sm text-red-400 bg-red-900/20 border border-red-900/40 rounded-xl px-4 py-3 text-center">
+                  {error}
+                </p>
+              )}
+
+              <button type="submit"
+                disabled={loading || !email.trim()}
+                className="w-full bg-amber-500 hover:bg-amber-600 disabled:opacity-40 disabled:pointer-events-none text-white font-semibold text-lg py-4 rounded-2xl transition-all active:scale-95 shadow-lg shadow-amber-500/30">
+                {loading ? (
+                  <span className="flex items-center justify-center gap-2">
+                    <svg className="animate-spin w-5 h-5" viewBox="0 0 24 24" fill="none">
+                      <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" strokeOpacity="0.3"/>
+                      <path d="M12 2a10 10 0 0 1 10 10" stroke="currentColor" strokeWidth="3" strokeLinecap="round"/>
+                    </svg>
+                    Vérification…
+                  </span>
+                ) : 'Continuer →'}
+              </button>
+            </form>
+
+            <p className="text-xs text-gray-600 text-center">
+              Si c'est votre première connexion, votre demande sera<br/>
+              envoyée à l'administrateur pour validation.
             </p>
-          )}
+          </>
+        )}
 
-          <button type="submit"
-            disabled={loading || !email.trim()}
-            className="w-full bg-amber-500 hover:bg-amber-600 disabled:opacity-40 disabled:pointer-events-none text-white font-semibold text-lg py-4 rounded-2xl transition-all active:scale-95 shadow-lg shadow-amber-500/30">
-            {loading ? (
-              <span className="flex items-center justify-center gap-2">
-                <svg className="animate-spin w-5 h-5" viewBox="0 0 24 24" fill="none">
-                  <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" strokeOpacity="0.3"/>
-                  <path d="M12 2a10 10 0 0 1 10 10" stroke="currentColor" strokeWidth="3" strokeLinecap="round"/>
-                </svg>
-                Vérification…
-              </span>
-            ) : 'Continuer →'}
-          </button>
-        </form>
+        {/* ── ÉTAPE 2 : modules + entreprise (compte inexistant) ── */}
+        {step === 'modules' && (
+          <>
+            <div className="text-center space-y-1">
+              <p className="text-base text-gray-300 font-medium">Création de votre compte</p>
+              <p className="text-sm text-gray-500">
+                <span className="text-amber-400">{email}</span><br/>
+                Indiquez ce que vous souhaitez faire avec l'application.
+              </p>
+            </div>
 
-        <p className="text-xs text-gray-600 text-center">
-          Si c'est votre première connexion, votre demande sera<br/>
-          envoyée à l'administrateur pour validation.
-        </p>
+            <form onSubmit={handleModulesSubmit} className="space-y-4">
+              <div>
+                <label className="text-xs text-gray-500 mb-2 block px-1">Que souhaitez-vous faire ?</label>
+                <div className="space-y-2">
+
+                  {/* Traiter les nids */}
+                  <label className={`flex items-start gap-3 p-3 rounded-2xl border cursor-pointer transition-colors ${
+                    demTraitement
+                      ? 'bg-amber-500/10 border-amber-500/40'
+                      : 'bg-gray-800 border-gray-700 hover:border-gray-600'
+                  }`}>
+                    <input type="checkbox"
+                      checked={demTraitement}
+                      onChange={e => setDemTraitement(e.target.checked)}
+                      className="mt-1 w-4 h-4 accent-amber-500 cursor-pointer"
+                    />
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium text-white">🐝 Traiter les nids</p>
+                      <p className="text-xs text-gray-400 mt-0.5">
+                        Intervention sur les nids · <span className="text-amber-400">réservé aux professionnels</span>
+                      </p>
+                    </div>
+                  </label>
+
+                  {/* Piéger */}
+                  <label className={`flex items-start gap-3 p-3 rounded-2xl border cursor-pointer transition-colors ${
+                    demPiegeage
+                      ? 'bg-amber-500/10 border-amber-500/40'
+                      : 'bg-gray-800 border-gray-700 hover:border-gray-600'
+                  }`}>
+                    <input type="checkbox"
+                      checked={demPiegeage}
+                      onChange={e => setDemPiegeage(e.target.checked)}
+                      className="mt-1 w-4 h-4 accent-amber-500 cursor-pointer"
+                    />
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium text-white">🪤 Poser des pièges</p>
+                      <p className="text-xs text-gray-400 mt-0.5">
+                        Capture de reines au printemps · ouvert à tous
+                      </p>
+                    </div>
+                  </label>
+
+                </div>
+              </div>
+
+              {/* Nom d'entreprise (visible uniquement si Traitement coché) */}
+              {demTraitement && (
+                <div>
+                  <label className="text-xs text-gray-500 mb-1.5 block px-1">
+                    Nom d'entreprise <span className="text-amber-400">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    value={entreprise}
+                    onChange={e => setEntreprise(e.target.value)}
+                    placeholder="Ex: SAS DésinfectPro"
+                    className="w-full bg-gray-800 border border-gray-700 rounded-2xl px-4 py-3 text-white text-sm placeholder-gray-600 focus:outline-none focus:border-amber-500"
+                  />
+                </div>
+              )}
+
+              {error && (
+                <p className="text-sm text-red-400 bg-red-900/20 border border-red-900/40 rounded-xl px-4 py-3 text-center">
+                  {error}
+                </p>
+              )}
+
+              <div className="flex gap-2">
+                <button type="button" onClick={handleBackToEmail}
+                  disabled={loading}
+                  className="flex-1 bg-gray-800 hover:bg-gray-700 disabled:opacity-40 text-gray-300 font-medium py-4 rounded-2xl transition-colors active:scale-95">
+                  ← Retour
+                </button>
+                <button type="submit"
+                  disabled={loading}
+                  className="flex-1 bg-amber-500 hover:bg-amber-600 disabled:opacity-40 disabled:pointer-events-none text-white font-semibold py-4 rounded-2xl transition-all active:scale-95 shadow-lg shadow-amber-500/30">
+                  {loading ? (
+                    <span className="flex items-center justify-center gap-2">
+                      <svg className="animate-spin w-5 h-5" viewBox="0 0 24 24" fill="none">
+                        <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" strokeOpacity="0.3"/>
+                        <path d="M12 2a10 10 0 0 1 10 10" stroke="currentColor" strokeWidth="3" strokeLinecap="round"/>
+                      </svg>
+                      Envoi…
+                    </span>
+                  ) : 'Envoyer ma demande'}
+                </button>
+              </div>
+            </form>
+          </>
+        )}
       </div>
 
       <p className="text-xs text-gray-700">Vespa Recorder — Olivier BERNARD</p>
