@@ -108,6 +108,17 @@ export default function AdminUtilisateurs() {
                   {u.entreprise && (
                     <p className="text-xs text-amber-400 mt-0.5 truncate">🏢 {u.entreprise}</p>
                   )}
+                  {u.siret && (
+                    <p className="text-xs text-gray-400 mt-0.5 truncate">SIRET : {u.siret}</p>
+                  )}
+                  {u.entreprise_telephone && (
+                    <p className="text-xs text-gray-400 mt-0.5 truncate">☎ {u.entreprise_telephone}</p>
+                  )}
+                  {(u.entreprise_adresse || u.entreprise_ville) && (
+                    <p className="text-xs text-gray-500 mt-0.5 truncate">
+                      {[u.entreprise_adresse, u.entreprise_cp, u.entreprise_ville].filter(Boolean).join(' · ')}
+                    </p>
+                  )}
                   <p className="text-xs text-gray-500 mt-0.5">Depuis le {new Date(u.created_at).toLocaleDateString('fr-FR')}</p>
                 </div>
                 {isPending ? (

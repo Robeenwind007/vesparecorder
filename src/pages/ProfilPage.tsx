@@ -1,15 +1,20 @@
+import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useUser } from '../hooks/useUser'
 import { useTheme } from '../hooks/useTheme'
 import type { Theme } from '../hooks/useTheme'
 import { useUnreadSupport } from '../hooks/useUnreadSupport'
 import { usePendingUsers } from '../hooks/usePendingUsers'
+import { useEntrepriseStatus } from '../hooks/useEntrepriseStatus'
+import EntrepriseModal from '../components/EntrepriseModal'
 
 export default function ProfilPage() {
-  const { user, isAdmin, logout } = useUser()
+  const { user, isAdmin, hasModuleTraitement, logout } = useUser()
   const { theme, resolvedTheme, setTheme }  = useTheme()
   const { count: unreadSupport } = useUnreadSupport()
   const { count: pendingUsers }  = usePendingUsers()
+  const { complete: entrepriseComplete, refresh: refreshEntreprise } = useEntrepriseStatus()
+  const [showEntreprise, setShowEntreprise] = useState(false)
   const navigate = useNavigate()
 
   const handleLogout = () => {
@@ -44,6 +49,34 @@ export default function ProfilPage() {
           </span>
         </div>
       </div>
+
+      {/* ── Mon entreprise (uniquement pour les pros avec module Traitement) ── */}
+      {hasModuleTraitement && (
+        <button onClick={() => setShowEntreprise(true)}
+          className={`w-full flex items-center gap-3 px-4 py-3.5 rounded-2xl border transition-colors text-left ${
+            entrepriseComplete
+              ? 'bg-gray-800/80 border-gray-700/50 hover:bg-gray-700/50'
+              : 'bg-amber-500/10 border-amber-500/40 hover:bg-amber-500/20'
+          }`}>
+          <span className="text-2xl">🏢</span>
+          <div className="flex-1 min-w-0">
+            <p className="text-sm font-medium text-white">Mon entreprise</p>
+            <p className="text-xs text-gray-500">
+              {entrepriseComplete
+                ? 'Coordonnées et SIRET enregistrés'
+                : 'Raison sociale et SIRET à compléter'}
+            </p>
+          </div>
+          {!entrepriseComplete && (
+            <span className="flex-shrink-0 text-xs px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-400 border border-amber-500/40">
+              À compléter
+            </span>
+          )}
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-gray-500">
+            <path d="m9 18 6-6-6-6"/>
+          </svg>
+        </button>
+      )}
 
       {/* ── Thème ── */}
       <div className="bg-gray-800/80 border border-gray-700/50 rounded-2xl overflow-hidden">
@@ -206,6 +239,11 @@ export default function ProfilPage() {
         className="w-full py-4 rounded-2xl border border-gray-700 text-gray-400 text-sm font-medium hover:border-gray-500 transition-colors">
         Changer d'utilisateur sur cet appareil
       </button>
+
+      {/* Modale "Mon entreprise" */}
+      {showEntreprise && (
+        <EntrepriseModal onClose={() => { setShowEntreprise(false); refreshEntreprise() }} />
+      )}
     </div>
   )
 }

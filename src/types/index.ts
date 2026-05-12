@@ -19,6 +19,12 @@ export interface Utilisateur {
   demande_traitement: boolean
   demande_piegeage: boolean
   entreprise: string | null
+  siret: string | null
+  entreprise_adresse: string | null
+  entreprise_complement: string | null
+  entreprise_cp: string | null
+  entreprise_ville: string | null
+  entreprise_telephone: string | null
   created_at: string
 }
 
