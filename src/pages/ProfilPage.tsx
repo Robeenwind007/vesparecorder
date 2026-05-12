@@ -17,11 +17,16 @@ export default function ProfilPage() {
   const [showEntreprise, setShowEntreprise] = useState(false)
   const navigate = useNavigate()
 
+  const [showLogoutModal, setShowLogoutModal] = useState(false)
+
   const handleLogout = () => {
-    if (confirm('Changer d\'utilisateur sur cet appareil ?')) {
-      logout()
-      navigate('/identification', { replace: true })
-    }
+    setShowLogoutModal(true)
+  }
+
+  const confirmLogout = () => {
+    setShowLogoutModal(false)
+    logout()
+    navigate('/identification', { replace: true })
   }
 
   const themes: { value: Theme; label: string; icon: string; desc: string }[] = [
@@ -257,6 +262,42 @@ export default function ProfilPage() {
       {/* Modale "Mon entreprise" */}
       {showEntreprise && (
         <EntrepriseModal onClose={() => { setShowEntreprise(false); refreshEntreprise() }} />
+      )}
+
+      {/* Modale confirmation déconnexion */}
+      {showLogoutModal && (
+        <div className="fixed inset-0 z-[2000] bg-black/80 flex items-end sm:items-center justify-center p-0 sm:p-4">
+          <div className="bg-gray-900 border border-gray-700 rounded-t-3xl sm:rounded-3xl w-full sm:max-w-md safe-bottom">
+            <div className="p-5 space-y-4">
+              <div className="flex items-center gap-3">
+                <span className="text-3xl">👋</span>
+                <div className="flex-1 min-w-0">
+                  <p className="text-base font-semibold text-white">Changer d'utilisateur ?</p>
+                  <p className="text-xs text-gray-500 mt-0.5">
+                    Vous allez être déconnecté de <span className="text-amber-400">{user?.email}</span> sur cet appareil.
+                  </p>
+                </div>
+              </div>
+
+              <div className="bg-gray-800/60 border border-gray-700/40 rounded-xl p-3">
+                <p className="text-xs text-gray-400">
+                  💡 Vos données restent en sécurité dans le cloud. Vous pourrez vous reconnecter à tout moment avec votre email.
+                </p>
+              </div>
+
+              <div className="flex gap-2 pt-1">
+                <button onClick={() => setShowLogoutModal(false)}
+                  className="flex-1 py-3 rounded-xl bg-gray-800 hover:bg-gray-700 text-gray-300 text-sm font-medium transition-colors">
+                  Annuler
+                </button>
+                <button onClick={confirmLogout}
+                  className="flex-1 py-3 rounded-xl bg-amber-500 hover:bg-amber-600 text-white text-sm font-semibold transition-colors active:scale-95">
+                  Me déconnecter
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   )

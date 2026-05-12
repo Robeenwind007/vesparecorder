@@ -5,14 +5,17 @@ import { supabase } from '../lib/supabase'
 import { Btn, Card, Spinner } from '../components/UI'
 
 // Tables sauvegardées dans l'ordre d'import (parents avant enfants)
+// L'ordre inverse est utilisé pour la suppression en mode total.
 const TABLES = [
-  'utilisateurs',
-  'donneurs_ordre',
-  'types_pieges',
-  'appats',
-  'observations',
-  'piegeages',
-  'piegeages_captures',  // dépend de piegeages → en dernier
+  'utilisateurs',         // pas de dépendance
+  'especes',              // paramétrage métier indépendant
+  'faq_items',            // paramétrage indépendant
+  'donneurs_ordre',       // référence utilisateurs (created_by_email)
+  'types_pieges',         // paramétrage indépendant
+  'appats',               // paramétrage indépendant
+  'observations',         // référence utilisateurs + donneurs + especes
+  'piegeages',            // référence utilisateurs + types_pieges
+  'piegeages_captures',   // référence piegeages → en dernier
 ] as const
 
 type TableName = typeof TABLES[number]
@@ -104,9 +107,12 @@ export default function AdminSauvegardePage() {
         if (!data.tables || typeof data.tables !== 'object') {
           throw new Error('Format invalide : champ "tables" manquant')
         }
-        const missingTables = TABLES.filter(t => !(t in data.tables))
-        if (missingTables.length > 0) {
-          throw new Error(`Tables manquantes : ${missingTables.join(', ')}`)
+        // On accepte les sauvegardes anciennes (tables manquantes) : elles seront juste
+        // ignorées à l'import. On normalise en remplissant à vide.
+        for (const t of TABLES) {
+          if (!(t in data.tables)) {
+            (data.tables as Record<string, unknown[]>)[t] = []
+          }
         }
         setPendingFile({ name: file.name, data })
       } catch (err) {
