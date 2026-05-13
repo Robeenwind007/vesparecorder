@@ -18,6 +18,7 @@ const ProfilPage            = lazy(() => import('./pages/ProfilPage'))
 const AdminDonneurs         = lazy(() => import('./pages/AdminDonneurs'))
 const AdminUtilisateurs     = lazy(() => import('./pages/AdminUtilisateurs'))
 const RapportPage           = lazy(() => import('./pages/RapportPage'))
+const RapportGlobalPage     = lazy(() => import('./pages/RapportGlobalPage'))
 const AdminEspeces          = lazy(() => import('./pages/AdminEspeces'))
 const AdminFaq              = lazy(() => import('./pages/AdminFaq'))
 // Piégeages
@@ -95,6 +96,7 @@ function AppContent() {
           <Route path="admin/utilisateurs"   element={<AdminUtilisateurs />} />
           <Route path="admin/rapport"        element={<RapportPage />} />
           <Route path="admin/rapport-pieges" element={<RapportPiegeagesPage />} />
+          <Route path="admin/rapport-global" element={<RapportGlobalPage />} />
           <Route path="admin/sauvegarde"     element={<AdminSauvegardePage />} />
 
           {/* Support */}
