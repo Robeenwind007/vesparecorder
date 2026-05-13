@@ -71,8 +71,8 @@ const truncate = (s: string, n: number) => s.length > n ? s.slice(0, n - 1) + '�
 
 // ── Composant ────────────────────────────────────────────────
 export default function RapportGlobalPage() {
-  const { isAdmin } = useUser()
-  const navigate    = useNavigate()
+  const { isAdmin, user } = useUser()
+  const navigate          = useNavigate()
 
   const [preset, setPreset]       = useState<PeriodePreset>('mois')
   const initial = bornesPreset('mois')
@@ -86,8 +86,9 @@ export default function RapportGlobalPage() {
   const [loadingPreview, setLoadingPreview]     = useState(false)
 
   useEffect(() => {
-    if (!isAdmin) { navigate('/'); return }
-  }, [isAdmin, navigate])
+    // Page accessible à tous (admin = tout, non-admin = filtré sur ses données)
+    if (!user) navigate('/')
+  }, [user, navigate])
 
   const handlePresetChange = (p: PeriodePreset) => {
     setPreset(p)
@@ -114,32 +115,40 @@ export default function RapportGlobalPage() {
 
   // ── Fetch ────────────────────────────────────────────────
   const fetchData = async () => {
+    // Si non-admin : filtre sur les données de l'utilisateur connecté
+    const emailFiltre = !isAdmin ? user?.email : null
+
     // Observations : filtre sur date_observation
-    const { data: obs } = await supabase
+    let obsQ = supabase
       .from('observations')
       .select('*')
       .gte('date_observation', dateDebut)
       .lte('date_observation', dateFin)
       .order('date_observation', { ascending: true })
+    if (emailFiltre) obsQ = obsQ.eq('saisi_par_email', emailFiltre)
+    const { data: obs } = await obsQ
 
     // Piégeages :
     // - Si date_retrait NULL : on inclut si date_pose <= dateFin (le piège est en cours pendant la période)
     // - Si date_retrait NOT NULL : on inclut si date_retrait dans [dateDebut, dateFin]
-    // On fait 2 requêtes pour ne pas avoir une formule OR trop complexe.
-    const { data: piegRelevesTab } = await supabase
+    let pieRelevesQ = supabase
       .from('piegeages')
       .select('*')
       .not('date_retrait', 'is', null)
       .gte('date_retrait', dateDebut)
       .lte('date_retrait', dateFin)
       .order('date_retrait', { ascending: true })
+    if (emailFiltre) pieRelevesQ = pieRelevesQ.eq('saisi_par_email', emailFiltre)
+    const { data: piegRelevesTab } = await pieRelevesQ
 
-    const { data: piegEnCoursTab } = await supabase
+    let pieEnCoursQ = supabase
       .from('piegeages')
       .select('*')
       .is('date_retrait', null)
-      .lte('date_pose', dateFin) // posé avant la fin de la période → encore en cours pendant
+      .lte('date_pose', dateFin)
       .order('date_pose', { ascending: true })
+    if (emailFiltre) pieEnCoursQ = pieEnCoursQ.eq('saisi_par_email', emailFiltre)
+    const { data: piegEnCoursTab } = await pieEnCoursQ
 
     const piegRelevesArr = (piegRelevesTab ?? []) as Piegeage[]
     const piegEnCoursArr = (piegEnCoursTab ?? []) as Piegeage[]
@@ -205,13 +214,14 @@ export default function RapportGlobalPage() {
     doc.setTextColor(...WHITE)
     doc.setFont('helvetica', 'bold')
     doc.setFontSize(16)
-    doc.text('VespaRecorder — Rapport global', W / 2, 17, { align: 'center' })
+    const titrePdf = isAdmin ? 'VespaRecorder — Rapport global' : 'VespaRecorder — Mon rapport'
+    doc.text(titrePdf, W / 2, 17, { align: 'center' })
     doc.setFont('helvetica', 'normal')
     doc.setFontSize(9)
-    doc.text(
-      `Période : ${fmtDate(dateDebut)} au ${fmtDate(dateFin)}   •   Généré le ${fmtDate(toISO(new Date()))}`,
-      W / 2, 25, { align: 'center' }
-    )
+    const sousTitre = isAdmin
+      ? `Période : ${fmtDate(dateDebut)} au ${fmtDate(dateFin)}   •   Généré le ${fmtDate(toISO(new Date()))}`
+      : `${user?.email}   •   Période : ${fmtDate(dateDebut)} au ${fmtDate(dateFin)}   •   Généré le ${fmtDate(toISO(new Date()))}`
+    doc.text(sousTitre, W / 2, 25, { align: 'center' })
 
     // ── SECTION 1 : Interventions (traitements) ───────────
     let curY = 36
@@ -245,11 +255,12 @@ export default function RapportGlobalPage() {
           type:        o.type_nid ?? '—',
           nb:          String(o.nombre_nids),
           emplacement: o.emplacement ?? '—',
-          loc:         o.adresse
-                        ? truncate(o.adresse, 28)
-                        : o.latitude
-                          ? `${o.latitude.toFixed(4)}, ${o.longitude?.toFixed(4)}`
-                          : '—',
+          // Adresse prioritaire (plus lisible) ; GPS uniquement si pas d'adresse
+          loc:         o.adresse?.trim()
+                        ? truncate(o.adresse.trim(), 35)
+                        : (o.latitude != null
+                            ? `${o.latitude.toFixed(4)}, ${o.longitude?.toFixed(4) ?? ''}`
+                            : '—'),
           retire:      o.retire ? 'OUI' : 'NON',
         })),
         theme: 'grid',
@@ -264,6 +275,14 @@ export default function RapportGlobalPage() {
           if (data.column.dataKey === 'retire' && data.section === 'body') {
             data.cell.styles.textColor = data.cell.raw === 'OUI' ? [5, 150, 105] : [220, 38, 38]
             data.cell.styles.fontStyle = 'bold'
+          }
+          // Coordonnées GPS pures : italique + gris (l'adresse normale reste en texte standard)
+          if (data.column.dataKey === 'loc' && data.section === 'body') {
+            const v = String(data.cell.raw ?? '')
+            if (/^-?\d+\.\d{4}/.test(v)) {
+              data.cell.styles.fontStyle = 'italic'
+              data.cell.styles.textColor = [107, 114, 128]
+            }
           }
         },
       })
@@ -312,11 +331,12 @@ export default function RapportGlobalPage() {
           type:        p.type_piege,
           appat:       p.appat ?? '—',
           emplacement: p.emplacement ?? '—',
-          loc:         p.adresse
-                        ? truncate(p.adresse, 28)
-                        : p.latitude
-                          ? `${p.latitude.toFixed(4)}, ${p.longitude?.toFixed(4)}`
-                          : '—',
+          // Adresse prioritaire (plus lisible) ; GPS uniquement si pas d'adresse
+          loc:         p.adresse?.trim()
+                        ? truncate(p.adresse.trim(), 35)
+                        : (p.latitude != null
+                            ? `${p.latitude.toFixed(4)}, ${p.longitude?.toFixed(4) ?? ''}`
+                            : '—'),
           capt:        String(captByPieg.get(p.id) ?? 0),
         })),
         theme: 'grid',
@@ -330,6 +350,14 @@ export default function RapportGlobalPage() {
           if (data.column.dataKey === 'releve' && data.section === 'body' && data.cell.raw === 'En cours') {
             data.cell.styles.textColor = [217, 119, 6]
             data.cell.styles.fontStyle = 'italic'
+          }
+          // Coordonnées GPS pures : italique + gris
+          if (data.column.dataKey === 'loc' && data.section === 'body') {
+            const v = String(data.cell.raw ?? '')
+            if (/^-?\d+\.\d{4}/.test(v)) {
+              data.cell.styles.fontStyle = 'italic'
+              data.cell.styles.textColor = [107, 114, 128]
+            }
           }
         },
       })
@@ -394,7 +422,8 @@ export default function RapportGlobalPage() {
     }
 
     // ── SAVE ───────────────────────────────────────────────
-    const filename = `vesparecorder-rapport-global_${dateDebut}_${dateFin}.pdf`
+    const prefix = isAdmin ? 'rapport-global' : `mon-rapport_${user?.email?.split('@')[0] || ''}`
+    const filename = `vesparecorder-${prefix}_${dateDebut}_${dateFin}.pdf`
     doc.save(filename)
     setGenerating(false)
   }
@@ -416,7 +445,9 @@ export default function RapportGlobalPage() {
         <button onClick={() => navigate(-1)} className="text-gray-400 hover:text-white p-1">
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M19 12H5M12 5l-7 7 7 7"/></svg>
         </button>
-        <h2 className="text-lg font-semibold flex-1">Rapport global</h2>
+        <h2 className="text-lg font-semibold flex-1">
+          {isAdmin ? 'Rapport global' : 'Mes rapports'}
+        </h2>
       </div>
 
       <div className="flex-1 overflow-y-auto px-4 py-5 space-y-5">

@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { getStats, getObservations } from '../lib/supabase'
 import { getPiegeages, totalCapturesPiegeage } from '../lib/piegeage'
 import { useUser } from '../hooks/useUser'
@@ -11,6 +12,7 @@ type Tab = 'observations' | 'piegeages'
 
 export default function StatsPage() {
   const { user, isAdmin, hasModuleTraitement, hasModulePiegeage } = useUser()
+  const navigate                = useNavigate()
   const [stats, setStats]       = useState<StatsDashboard | null>(null)
   const [obs, setObs]           = useState<Observation[]>([])
   const [pieges, setPieges]     = useState<PiegeageAvecCaptures[]>([])
@@ -95,6 +97,15 @@ export default function StatsPage() {
       )}
       {hasModulePiegeage   && (showTabs ? tab === 'piegeages'    : !hasModuleTraitement) && (
         <StatsPiegeages pieges={pieges} />
+      )}
+
+      {/* Bouton "Mes rapports" — non-admin : génère un rapport personnel filtré */}
+      {!isAdmin && (
+        <button onClick={() => navigate('/admin/rapport-global')}
+          className="w-full flex items-center justify-center gap-2 bg-amber-500/10 border border-amber-500/40 hover:bg-amber-500/20 text-amber-400 font-medium py-3.5 rounded-2xl transition-colors">
+          <span className="text-xl">📊</span>
+          <span className="text-sm">Mes rapports PDF</span>
+        </button>
       )}
     </div>
   )
