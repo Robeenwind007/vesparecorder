@@ -238,7 +238,7 @@ export default function RapportGlobalPage() {
         startY: curY,
         columns: [
           { header: 'Date',        dataKey: 'date' },
-          { header: 'Piégeur',     dataKey: 'piegeur' },
+          ...(isAdmin ? [{ header: 'Piégeur', dataKey: 'piegeur' }] : []),
           { header: 'Donneur',     dataKey: 'donneur' },
           { header: 'Espèce',      dataKey: 'espece' },
           { header: 'Type nid',    dataKey: 'type' },
@@ -249,7 +249,7 @@ export default function RapportGlobalPage() {
         ],
         body: obs.map(o => ({
           date:        fmtDate(o.date_observation),
-          piegeur:     o.saisi_par_email?.split('@')[0] ?? '—',
+          ...(isAdmin ? { piegeur: o.saisi_par_email?.split('@')[0] ?? '—' } : {}),
           donneur:     o.donneur_ordre ?? '—',
           espece:      o.espece,
           type:        o.type_nid ?? '—',
@@ -317,7 +317,7 @@ export default function RapportGlobalPage() {
         columns: [
           { header: 'Date pose',    dataKey: 'pose' },
           { header: 'Date relevé',  dataKey: 'releve' },
-          { header: 'Piégeur',      dataKey: 'piegeur' },
+          ...(isAdmin ? [{ header: 'Piégeur', dataKey: 'piegeur' }] : []),
           { header: 'Type piège',   dataKey: 'type' },
           { header: 'Appât',        dataKey: 'appat' },
           { header: 'Emplacement',  dataKey: 'emplacement' },
@@ -327,7 +327,7 @@ export default function RapportGlobalPage() {
         body: piegeages.map(p => ({
           pose:        fmtDate(p.date_pose),
           releve:      p.date_retrait ? fmtDate(p.date_retrait) : 'En cours',
-          piegeur:     p.saisi_par_email?.split('@')[0] ?? '—',
+          ...(isAdmin ? { piegeur: p.saisi_par_email?.split('@')[0] ?? '—' } : {}),
           type:        p.type_piege,
           appat:       p.appat ?? '—',
           emplacement: p.emplacement ?? '—',
