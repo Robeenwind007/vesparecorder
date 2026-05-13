@@ -35,8 +35,8 @@ function makeSquareIcon(color: string, size = 14) {
   })
 }
 
-const PIEGE_COLOR        = '#475569'
-const PIEGE_RETIRE_COLOR = '#6B7280'
+const PIEGE_COLOR        = '#F59E0B'  // En place : orange (couleur thème app)
+const PIEGE_RETIRE_COLOR = '#10B981'  // Retiré : vert (terminé / OK)
 
 type FiltreType = 'all' | 'nids' | 'pieges'
 
@@ -148,7 +148,7 @@ export default function CartePage() {
         .forEach(o => {
           const color  = especesGetColor(o.espece as Espece)
           const marker = L.marker([o.latitude!, o.longitude!], {
-            icon: makeIcon(o.retire ? '#6B7280' : color),
+            icon: makeIcon(color),
           })
           marker.bindPopup(`
             <div style="font-family:system-ui;min-width:180px">
@@ -295,10 +295,6 @@ export default function CartePage() {
                 {e.nom}
               </div>
             ))}
-            <div className="flex items-center gap-2 text-xs text-gray-500 pt-1 border-t border-gray-700">
-              <div className="w-3 h-3 rounded-full bg-gray-500 border border-white/40 flex-shrink-0" />
-              Retiré
-            </div>
           </>
         )}
         {hasModulePiegeage && filtreType !== 'nids' && (
