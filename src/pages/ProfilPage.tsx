@@ -237,6 +237,14 @@ export default function ProfilPage() {
           </span>
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="m9 18 6-6-6-6"/></svg>
         </button>
+        <a
+          href="https://tvozrqsgrcwyrpxebwih.supabase.co/storage/v1/object/public/Docs/VespaRecorder-Guide-Utilisateur_2.pdf"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="w-full flex items-center justify-between px-4 py-3.5 text-sm hover:bg-gray-700/50 transition-colors border-t border-gray-700/50">
+          <span>📖 Guide utilisateur (PDF)</span>
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M7 17 17 7M7 7h10v10"/></svg>
+        </a>
       </div>
 
       {/* Application */}
