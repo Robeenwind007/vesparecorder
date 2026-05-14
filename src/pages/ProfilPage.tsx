@@ -6,6 +6,7 @@ import type { Theme } from '../hooks/useTheme'
 import { useUnreadSupport } from '../hooks/useUnreadSupport'
 import { usePendingUsers } from '../hooks/usePendingUsers'
 import { useEntrepriseStatus } from '../hooks/useEntrepriseStatus'
+import { usePushStatus } from '../hooks/usePushStatus'
 import EntrepriseModal from '../components/EntrepriseModal'
 
 export default function ProfilPage() {
@@ -14,6 +15,7 @@ export default function ProfilPage() {
   const { count: unreadSupport } = useUnreadSupport()
   const { count: pendingUsers }  = usePendingUsers()
   const { complete: entrepriseComplete, refresh: refreshEntreprise } = useEntrepriseStatus()
+  const push = usePushStatus(user?.email)
   const [showEntreprise, setShowEntreprise] = useState(false)
   const navigate = useNavigate()
 
@@ -160,6 +162,41 @@ export default function ProfilPage() {
             </span>
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="m9 18 6-6-6-6"/></svg>
           </button>
+
+          {/* Notifications push */}
+          <button
+            disabled={push.busy || push.status === 'unsupported' || push.status === 'not-pwa' || push.status === 'denied' || push.status === 'loading'}
+            onClick={() => push.status === 'active' ? push.deactivate() : push.activate()}
+            className="w-full flex items-center justify-between px-4 py-3.5 text-sm hover:bg-gray-700/50 transition-colors border-t border-gray-700/50 disabled:opacity-50 disabled:cursor-not-allowed text-left">
+            <span className="flex items-center gap-2 flex-1 min-w-0">
+              <span>🔔 Notifications push</span>
+              {push.status === 'active' && (
+                <span className="text-xs px-2 py-0.5 rounded-full bg-green-900/40 text-green-400 border border-green-500/40">
+                  Actives
+                </span>
+              )}
+              {push.status === 'inactive' && (
+                <span className="text-xs px-2 py-0.5 rounded-full bg-gray-700 text-gray-400">
+                  Inactives
+                </span>
+              )}
+              {push.status === 'unsupported' && (
+                <span className="text-xs text-gray-500">Non supporté</span>
+              )}
+              {push.status === 'not-pwa' && (
+                <span className="text-xs text-amber-400">PWA requise (iOS)</span>
+              )}
+              {push.status === 'denied' && (
+                <span className="text-xs text-red-400">Bloquées dans Réglages</span>
+              )}
+              {push.busy && <span className="text-xs text-gray-500">…</span>}
+            </span>
+          </button>
+          {push.error && (
+            <p className="px-4 py-2 text-xs text-red-400 bg-red-900/10 border-t border-red-900/30">
+              {push.error}
+            </p>
+          )}
           <button onClick={() => navigate('/admin/rapport-global')}
             className="w-full flex items-center justify-between px-4 py-3.5 text-sm hover:bg-gray-700/50 transition-colors border-t border-gray-700/50">
             <span>📊 Rapport global PDF</span>
