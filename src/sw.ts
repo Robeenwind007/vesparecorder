@@ -31,11 +31,18 @@ self.addEventListener('activate', () => self.clients.claim())
 
 // ── Notifications push ─────────────────────────────────────────
 self.addEventListener('push', (event: PushEvent) => {
+  console.log('[SW] Push reçu:', event.data?.text()?.slice(0, 100))
+
   let payload: { title?: string; body?: string; url?: string; tag?: string } = {}
   try {
-    payload = event.data?.json() ?? {}
+    const text = event.data?.text() ?? ''
+    if (text.startsWith('{')) {
+      payload = JSON.parse(text)
+    } else {
+      payload = { title: 'VespaRecorder', body: text }
+    }
   } catch {
-    payload = { title: 'VespaRecorder', body: event.data?.text() ?? '' }
+    payload = { title: 'VespaRecorder', body: event.data?.text() ?? 'Nouvelle notification' }
   }
 
   const title = payload.title ?? 'VespaRecorder'
@@ -45,7 +52,10 @@ self.addEventListener('push', (event: PushEvent) => {
     badge: '/icons/icon-192.png',
     tag: payload.tag ?? 'vespa',
     data: { url: payload.url ?? '/' },
+    requireInteraction: false,
   }
+
+  console.log('[SW] Affichage notification:', title, options.body)
   event.waitUntil(self.registration.showNotification(title, options))
 })
 
