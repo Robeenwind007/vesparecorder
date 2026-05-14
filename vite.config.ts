@@ -33,7 +33,7 @@ export default defineConfig({
       registerType: 'autoUpdate',
       strategies: 'injectManifest',
       srcDir: 'src',
-      filename: 'sw.ts',
+      filename: 'sw2.ts',
       includeAssets: ['favicon.ico', 'apple-touch-icon.png', 'icons/*.png'],
       manifest: {
         name: 'Vespa Recorder',
