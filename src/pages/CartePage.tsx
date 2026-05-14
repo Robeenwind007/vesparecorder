@@ -103,6 +103,26 @@ export default function CartePage() {
     return () => { leaflet.current?.remove(); leaflet.current = null }
   }, [])
 
+  // Event delegation : intercepter les clics sur les boutons "Voir détail"
+  // dans les popups Leaflet (HTML brut) pour utiliser React Router au lieu
+  // de window.location.href qui rechargeait toute la page.
+  useEffect(() => {
+    const container = mapRef.current
+    if (!container) return
+    const handleClick = (e: MouseEvent) => {
+      const target = e.target as HTMLElement
+      const btn = target.closest('[data-navigate]') as HTMLElement | null
+      if (!btn) return
+      const path = btn.getAttribute('data-navigate')
+      if (!path) return
+      e.preventDefault()
+      e.stopPropagation()
+      navigate(path)
+    }
+    container.addEventListener('click', handleClick)
+    return () => container.removeEventListener('click', handleClick)
+  }, [navigate])
+
   // Chargement données — respecte les modules autorisés
   useEffect(() => {
     if (!user) return
@@ -158,7 +178,7 @@ export default function CartePage() {
               ${o.type_nid ? `<p style="font-size:12px;margin:0 0 4px">Nid : ${o.type_nid}</p>` : ''}
               ${o.emplacement ? `<p style="font-size:12px;margin:0 0 4px">📍 ${o.emplacement}</p>` : ''}
               <p style="font-size:12px;margin:0">${o.retire ? '✅ Retiré' : '🟠 Non retiré'}</p>
-              <button onclick="window.location.href='/observation/${o.id}'"
+              <button data-navigate="/observation/${o.id}"
                 style="margin-top:8px;background:#D97706;color:white;border:none;padding:6px 12px;border-radius:8px;font-size:12px;cursor:pointer;width:100%">
                 Voir détail →
               </button>
@@ -207,7 +227,7 @@ export default function CartePage() {
               ${p.emplacement ? `<p style="font-size:12px;margin:0 0 2px">📍 ${p.emplacement}</p>` : ''}
               ${capturesHtml}
               <p style="font-size:12px;margin:4px 0 0">${enPlace ? '🟠 En place' : '✅ Retiré'}</p>
-              <button onclick="window.location.href='/piegeages/${p.id}'"
+              <button data-navigate="/piegeages/${p.id}"
                 style="margin-top:8px;background:#475569;color:white;border:none;padding:6px 12px;border-radius:8px;font-size:12px;cursor:pointer;width:100%">
                 Voir détail →
               </button>
