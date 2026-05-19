@@ -39,7 +39,6 @@ export default function FormulaireIntervention() {
   const [donneurs, setDonneurs]         = useState<DonneurOrdre[]>([])
   const [loading, setLoading]           = useState(false)
   const [loadingGPS, setLoadingGPS]     = useState(false)
-  const [geocoding, setGeocoding]       = useState(false)
   const [saving, setSaving]             = useState(false)
   const [errors, setErrors]             = useState<Partial<Record<string, string>>>({})
   const [preview, setPreview]           = useState<string | null>(null)
@@ -107,21 +106,6 @@ export default function FormulaireIntervention() {
     setSavingDonneur(false)
   }
 
-  // Géocodage manuel via bouton : remplit lat/lng depuis l'adresse saisie
-  const handleGeocode = async () => {
-    const adresse = form.adresse.trim()
-    if (!adresse) return
-    setGeocoding(true)
-    const coords = await geocodeAdresse(adresse)
-    setGeocoding(false)
-    if (coords) {
-      set('latitude', coords.lat)
-      set('longitude', coords.lng)
-    } else {
-      alert('Adresse introuvable. Vérifiez l\'adresse ou utilisez le GPS.')
-    }
-  }
-
   const captureGPS = (): Promise<{lat: number, lng: number} | null> => {
     setLoadingGPS(true)
     return new Promise(resolve => {
@@ -176,9 +160,20 @@ export default function FormulaireIntervention() {
     let image_url = form.image_url
     if (form.image_file) image_url = await uploadPhoto(user.email, form.image_file)
 
+    // Si adresse saisie sans GPS → géocodage automatique
     if (adresse && !lat) {
       const coords = await geocodeAdresse(adresse)
-      if (coords) { lat = coords.lat; lng = coords.lng }
+      if (coords) {
+        lat = coords.lat
+        lng = coords.lng
+      } else {
+        // Adresse non trouvée et pas de GPS → on bloque avec un message d'erreur
+        setErrors(prev => ({
+          ...prev,
+          localisation: 'Adresse introuvable. Précisez l\'adresse ou capturez la position GPS.',
+        }))
+        return null
+      }
     }
 
     const origine: 'GPS' | 'Adresse' =
@@ -215,7 +210,8 @@ export default function FormulaireIntervention() {
     if (!validate() || !user) return
     setSaving(true)
     try {
-      await saveAndReturn()
+      const result = await saveAndReturn()
+      if (result === null) return // Échec géocodage : erreur déjà affichée dans le form
       navigate(-1)
     } catch (e) {
       alert('Erreur lors de la sauvegarde')
@@ -413,22 +409,11 @@ export default function FormulaireIntervention() {
             <span className="text-xs text-gray-600">Au moins l'un des deux</span>
           </div>
 
-          {/* Adresse libre + bouton Géocoder */}
+          {/* Adresse libre */}
           <div className="space-y-1.5">
-            <div className="flex gap-2">
-              <div className="flex-1">
-                <Input placeholder="ex: 13 Av. des Quatre Vents, 44360 Cordemais"
-                  value={form.adresse}
-                  onChange={e => set('adresse', e.target.value)} />
-              </div>
-              <button
-                type="button"
-                onClick={handleGeocode}
-                disabled={geocoding || !form.adresse.trim()}
-                className="flex-shrink-0 px-3 py-2 bg-gray-700 hover:bg-gray-600 disabled:opacity-40 disabled:cursor-not-allowed text-gray-300 text-xs font-medium rounded-xl border border-gray-600 transition-colors">
-                {geocoding ? '…' : '📍 Géocoder'}
-              </button>
-            </div>
+            <Input placeholder="ex: 13 Av. des Quatre Vents, 44360 Cordemais"
+              value={form.adresse}
+              onChange={e => set('adresse', e.target.value)} />
           </div>
 
           {/* Bouton GPS */}
