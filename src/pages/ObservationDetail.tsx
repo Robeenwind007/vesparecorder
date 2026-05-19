@@ -58,7 +58,7 @@ export default function ObservationDetail() {
 
         <div className="bg-gray-800/60 rounded-2xl border border-gray-700/50 divide-y divide-gray-700/50">
           <Row label="Date"           value={new Date(obs.date_observation).toLocaleDateString('fr-FR', { weekday:'long', year:'numeric', month:'long', day:'numeric' })} />
-          <Row label="Donneur d'ordre" value={obs.donneur_ordre} />
+          {isAdmin && <Row label="Donneur d'ordre" value={obs.donneur_ordre} />}
           <Row label="Bénéficiaire"   value={obs.beneficiaire} />
           <Row label="Nombre de nids" value={String(obs.nombre_nids)} />
           <Row label="Emplacement"    value={obs.emplacement} />
@@ -81,7 +81,7 @@ export default function ObservationDetail() {
         </div>
 
         <div className="bg-gray-800/60 rounded-2xl border border-gray-700/50 divide-y divide-gray-700/50">
-          <Row label="Saisi par" value={obs.saisi_par_email} />
+          {isAdmin && <Row label="Saisi par" value={obs.saisi_par_email} />}
           <Row label="Créé le"   value={new Date(obs.created_at).toLocaleDateString('fr-FR')} />
         </div>
 

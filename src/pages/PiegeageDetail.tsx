@@ -81,7 +81,7 @@ export default function PiegeageDetail() {
             {(p.latitude && p.longitude) && (
               <div className="flex justify-between"><dt className="text-gray-400">GPS</dt><dd className="font-mono text-xs">{p.latitude.toFixed(5)}, {p.longitude.toFixed(5)}</dd></div>
             )}
-            {p.saisi_par_email && (
+            {isAdmin && p.saisi_par_email && (
               <div className="flex justify-between gap-3"><dt className="text-gray-400 flex-shrink-0">Saisi par</dt><dd className="truncate text-xs">{p.saisi_par_email}</dd></div>
             )}
           </dl>
