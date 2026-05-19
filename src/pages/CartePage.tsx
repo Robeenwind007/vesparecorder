@@ -298,7 +298,7 @@ export default function CartePage() {
                 ? 'bg-amber-500 border-amber-500 text-black'
                 : 'bg-gray-900/95 border-gray-700 text-gray-300'
             }`}>
-            {voirTout ? '👁 Tous' : '👤 Les miennes'}
+            {voirTout ? '👁 Tous' : '👤 Les miens'}
           </button>
       </div>
 
