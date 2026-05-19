@@ -63,7 +63,17 @@ export default function CartePage() {
   const [filtreRetire, setFiltreRetire] = useState('all')
   const [filtreAnnee, setFiltreAnnee]   = useState<string>(String(new Date().getFullYear()))
   const [annees, setAnnees]             = useState<string[]>([])
-  const [voirTout, setVoirTout]         = useState(false)
+  const [voirTout, setVoirTout] = useState<boolean>(() => {
+    return sessionStorage.getItem('carte_voir_tout') === 'true'
+  })
+
+  const toggleVoirTout = () => {
+    setVoirTout(v => {
+      const next = !v
+      sessionStorage.setItem('carte_voir_tout', String(next))
+      return next
+    })
+  }
 
   // Init map
   useEffect(() => {
@@ -282,7 +292,7 @@ export default function CartePage() {
           <option value="actif">Actifs / En place</option>
           <option value="retire">Retirés</option>
         </select>
-        <button onClick={() => setVoirTout(v => !v)}
+        <button onClick={toggleVoirTout}
             className={`text-xs px-3 py-2 rounded-xl border font-medium transition-colors ${
               voirTout
                 ? 'bg-amber-500 border-amber-500 text-black'
