@@ -39,6 +39,7 @@ export default function FormulaireIntervention() {
   const [donneurs, setDonneurs]         = useState<DonneurOrdre[]>([])
   const [loading, setLoading]           = useState(false)
   const [loadingGPS, setLoadingGPS]     = useState(false)
+  const [geocoding, setGeocoding]       = useState(false)
   const [saving, setSaving]             = useState(false)
   const [errors, setErrors]             = useState<Partial<Record<string, string>>>({})
   const [preview, setPreview]           = useState<string | null>(null)
@@ -104,6 +105,21 @@ export default function FormulaireIntervention() {
     setNewDonneur('')
     setShowAddDonneur(false)
     setSavingDonneur(false)
+  }
+
+  // Géocodage manuel via bouton : remplit lat/lng depuis l'adresse saisie
+  const handleGeocode = async () => {
+    const adresse = form.adresse.trim()
+    if (!adresse) return
+    setGeocoding(true)
+    const coords = await geocodeAdresse(adresse)
+    setGeocoding(false)
+    if (coords) {
+      set('latitude', coords.lat)
+      set('longitude', coords.lng)
+    } else {
+      alert('Adresse introuvable. Vérifiez l\'adresse ou utilisez le GPS.')
+    }
   }
 
   const captureGPS = (): Promise<{lat: number, lng: number} | null> => {
@@ -397,11 +413,22 @@ export default function FormulaireIntervention() {
             <span className="text-xs text-gray-600">Au moins l'un des deux</span>
           </div>
 
-          {/* Adresse libre */}
+          {/* Adresse libre + bouton Géocoder */}
           <div className="space-y-1.5">
-            <Input placeholder="ex: 13 Av. des Quatre Vents, 44360 Cordemais"
-              value={form.adresse}
-              onChange={e => set('adresse', e.target.value)} />
+            <div className="flex gap-2">
+              <div className="flex-1">
+                <Input placeholder="ex: 13 Av. des Quatre Vents, 44360 Cordemais"
+                  value={form.adresse}
+                  onChange={e => set('adresse', e.target.value)} />
+              </div>
+              <button
+                type="button"
+                onClick={handleGeocode}
+                disabled={geocoding || !form.adresse.trim()}
+                className="flex-shrink-0 px-3 py-2 bg-gray-700 hover:bg-gray-600 disabled:opacity-40 disabled:cursor-not-allowed text-gray-300 text-xs font-medium rounded-xl border border-gray-600 transition-colors">
+                {geocoding ? '…' : '📍 Géocoder'}
+              </button>
+            </div>
           </div>
 
           {/* Bouton GPS */}
