@@ -123,11 +123,11 @@ export default function CartePage() {
     return () => container.removeEventListener('click', handleClick)
   }, [navigate])
 
-  // Chargement données — respecte les modules autorisés
+  // Chargement données — voirTout disponible pour tous les utilisateurs
   useEffect(() => {
     if (!user) return
     setLoading(true)
-    const emailFiltre = isAdmin && voirTout ? undefined : user.email
+    const emailFiltre = voirTout ? undefined : user.email
 
     Promise.all([
       hasModuleTraitement ? getObservations({ emailFiltre }) : Promise.resolve([]),
@@ -282,8 +282,7 @@ export default function CartePage() {
           <option value="actif">Actifs / En place</option>
           <option value="retire">Retirés</option>
         </select>
-        {isAdmin && (
-          <button onClick={() => setVoirTout(v => !v)}
+        <button onClick={() => setVoirTout(v => !v)}
             className={`text-xs px-3 py-2 rounded-xl border font-medium transition-colors ${
               voirTout
                 ? 'bg-amber-500 border-amber-500 text-black'
@@ -291,7 +290,6 @@ export default function CartePage() {
             }`}>
             {voirTout ? '👁 Tous' : '👤 Les miennes'}
           </button>
-        )}
       </div>
 
       {/* Compteur */}
